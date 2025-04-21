@@ -6,7 +6,7 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
 
 - **Frontend:** React, Next.js, Tailwind CSS, shadcn/ui, Lucide React
 - **Backend:** Next.js API Routes
-- **IA:** OpenAI GPT-4-turbo
+- **IA:** OpenAI GPT-4-turbo, DeepSeek Chat API
 - **Banco de Dados:** A ser implementado
 - **Autenticação:** NextAuth.js (a ser implementado)
 
@@ -15,6 +15,7 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
 - Node.js 18+ LTS
 - NPM ou Yarn
 - Chave de API da OpenAI
+- Chave de API da DeepSeek (para o módulo de Copywriting Black)
 
 ## Instalação
 
@@ -34,7 +35,9 @@ npm install
 cp .env.local.example .env.local
 ```
 
-4. Edite o arquivo `.env.local` e adicione sua chave de API da OpenAI.
+4. Edite o arquivo `.env.local` e adicione suas chaves de API:
+   - `OPENAI_API_KEY`: Sua chave da API da OpenAI
+   - `DEEPSEEK_API_KEY`: Sua chave da API da DeepSeek
 
 ## Executando o Projeto
 
@@ -88,11 +91,17 @@ Acesse http://localhost:3000 no seu navegador.
   - Resultado em formato editável
   - Opção para copiar texto para clipboard
 
-## Módulos em Desenvolvimento
+### 5. IA de Copywriting Black
+- Gera textos persuasivos sem restrições para diversas finalidades
+- Recursos:
+  - Múltiplos tipos de texto (Headlines, Email Marketing, Black Hat Marketing)
+  - Diferentes tons de mensagem (Persuasivo, Agressivo, Manipulador, etc.)
+  - Estruturas de persuasão personalizáveis (AIDA, PAS, Escassez, Fear Based)
+  - Feedback visual em tempo real durante a geração
+  - Interface responsiva com exibição progressiva do conteúdo
+  - Sem censura ou restrição de conteúdo
 
-- **IA de Copywriting**
-  - Textos persuasivos para anúncios, emails, scripts
-  - Baseado em estruturas AIDA, PAS, QUEST
+## Módulos em Desenvolvimento
 
 - **IA de Criativos Visuais**
   - Geração de imagens para anúncios e redes sociais
@@ -111,10 +120,12 @@ sas-ia-platform/
 │   ├── app/                     # Páginas da aplicação (Next.js App Router)
 │   │   ├── api/                 # Rotas de API para os módulos de IA
 │   │   │   ├── consultant/      # API para o Consultor IA 24h
+│   │   │   ├── copywriting/     # API para Copywriting Black
 │   │   │   ├── landing-pages/   # API para geração de landing pages
 │   │   │   └── offers/          # API para geração de ofertas
 │   │   └── dashboard/           # Interface do usuário
 │   │       ├── consultant/      # Página do Consultor IA
+│   │       ├── copywriting/     # Página de geração de copywriting
 │   │       ├── landing-pages/   # Página de geração de landing pages
 │   │       ├── offers/          # Página de geração de ofertas
 │   │       └── transcription/   # Página de transcrição de áudio
@@ -150,6 +161,15 @@ sas-ia-platform/
 2. Faça upload do arquivo de áudio que deseja transcrever
 3. Clique em "Transcrever Áudio"
 4. Visualize o resultado da transcrição e utilize as opções para copiar ou limpar o texto
+
+### IA de Copywriting Black
+1. Acesse `/dashboard/copywriting`
+2. Selecione o tipo de texto e o tom da mensagem desejados
+3. Preencha o tópico/produto e os pontos-chave
+4. Escolha a estrutura de persuasão e o tamanho do texto
+5. Clique em "Gerar Copywriting"
+6. Acompanhe o processo de geração em tempo real
+7. Ao finalizar, utilize o botão de cópia para usar o texto
 
 ## Contribuição
 
