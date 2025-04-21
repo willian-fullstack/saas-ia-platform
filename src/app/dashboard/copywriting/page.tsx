@@ -1,21 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Loader2,
-  Edit,
   Copy,
-  Rocket
+  BookText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Loading } from "@/components/ui/loading";
 
 export default function CopywritingPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingDots, setLoadingDots] = useState("");
   const [formData, setFormData] = useState({
     topic: "",
     copyType: "headline",
@@ -25,6 +27,41 @@ export default function CopywritingPage() {
     structure: "aida",
     wordCount: "médio"
   });
+
+  // Efeito para mostrar mensagens durante o carregamento
+  useEffect(() => {
+    if (loading) {
+      const messages = [
+        "Analisando o tema...",
+        "Identificando pontos fortes...",
+        "Aplicando técnicas persuasivas...",
+        "Criando texto impactante...",
+        "Refinando a mensagem...",
+        "Finalizando o texto..."
+      ];
+      
+      let currentMessageIndex = 0;
+      const messageInterval = setInterval(() => {
+        if (currentMessageIndex < messages.length) {
+          setLoadingMessage(messages[currentMessageIndex]);
+          currentMessageIndex++;
+        }
+      }, 2000);
+      
+      // Animação de pontos
+      const dotsInterval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev.length >= 3) return "";
+          return prev + ".";
+        });
+      }, 500);
+      
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(dotsInterval);
+      };
+    }
+  }, [loading]);
 
   // Atualizar o estado do formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -70,30 +107,65 @@ export default function CopywritingPage() {
     
     setLoading(true);
     setResult("");
+    setLoadingMessage("Iniciando geração do texto...");
     
     try {
-      // Simulação da chamada à API (em um projeto real, isso faria uma requisição)
-      // Timeout simulando o processamento da IA
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Criar um AbortController para cancelar a requisição se necessário
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos de timeout
       
-      // Resultado simulado da IA
-      let generatedCopy = "";
+      // Realizar chamada à API
+      const response = await fetch('/api/copywriting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: formData.topic,
+          copyType: formData.copyType,
+          tone: formData.tone,
+          targetAudience: formData.targetAudience,
+          keyPoints: filteredKeyPoints,
+          structure: formData.structure,
+          wordCount: formData.wordCount
+        }),
+        signal: controller.signal
+      });
       
-      if (formData.copyType === "headline") {
-        generatedCopy = generateHeadline(formData.topic, formData.tone);
-      } else if (formData.copyType === "paragraph") {
-        generatedCopy = generateParagraph(formData.topic, formData.tone, filteredKeyPoints, formData.structure);
-      } else if (formData.copyType === "email") {
-        generatedCopy = generateEmail(formData.topic, formData.tone, filteredKeyPoints, formData.structure);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao processar solicitação');
       }
       
-      setResult(generatedCopy);
+      // Simular a geração de texto progressiva
+      const data = await response.json();
+      const textContent = data.result;
+      
+      // Mostrar o texto gradualmente para um melhor feedback visual
+      const words = textContent.split(' ');
+      let displayedText = "";
+      
+      for (let i = 0; i < words.length; i += 5) {
+        const chunk = words.slice(i, i + 5).join(' ');
+        displayedText += ' ' + chunk;
+        setResult(displayedText);
+        
+        // Pequena pausa para criar efeito de digitação
+        if (i < words.length - 5) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+      
       toast.success("Copywriting gerado com sucesso!");
     } catch (error) {
       console.error("Erro:", error);
-      toast.error("Falha ao gerar o texto. Tente novamente mais tarde.");
+      toast.error(`Falha ao gerar o texto: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
+      setLoadingMessage("");
+      setLoadingDots("");
     }
   };
   
@@ -107,9 +179,9 @@ export default function CopywritingPage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">IA de Copywriting</h1>
+        <h1 className="text-3xl font-bold tracking-tight">IA de Copywriting Black</h1>
         <p className="text-muted-foreground">
-          Gere textos persuasivos para anúncios, landing pages, emails e mais.
+          Gere textos persuasivos para anúncios, landing pages, emails e mais sem restrições.
         </p>
       </div>
 
@@ -130,6 +202,7 @@ export default function CopywritingPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 placeholder="Ex: Curso de marketing digital, Produto de emagrecimento..."
                 required
+                disabled={loading}
               />
             </div>
             
@@ -144,10 +217,14 @@ export default function CopywritingPage() {
                 value={formData.copyType}
                 onChange={handleChange}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={loading}
               >
                 <option value="headline">Headline (Título)</option>
                 <option value="paragraph">Parágrafo de Venda</option>
                 <option value="email">Email de Marketing</option>
+                <option value="fullcopy">Copy Completa</option>
+                <option value="blackhat">Black Hat Marketing</option>
+                <option value="sales">Texto de Vendas Agressivo</option>
               </select>
             </div>
             
@@ -162,13 +239,15 @@ export default function CopywritingPage() {
                 value={formData.tone}
                 onChange={handleChange}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={loading}
               >
                 <option value="persuasivo">Persuasivo</option>
                 <option value="urgente">Urgente</option>
                 <option value="amigavel">Amigável</option>
-                <option value="informativo">Informativo</option>
-                <option value="empolgante">Empolgante</option>
-                <option value="autoridade">Autoridade</option>
+                <option value="agressivo">Agressivo</option>
+                <option value="controverso">Controverso</option>
+                <option value="manipulador">Manipulador</option>
+                <option value="chocante">Chocante</option>
               </select>
             </div>
             
@@ -184,6 +263,7 @@ export default function CopywritingPage() {
                 onChange={handleChange}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 placeholder="Ex: Mulheres entre 30-50 anos, empreendedores iniciantes..."
+                disabled={loading}
               />
             </div>
             
@@ -199,9 +279,10 @@ export default function CopywritingPage() {
                   onChange={(e) => handleKeyPointChange(index, e.target.value)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   placeholder={`Ponto-chave ${index + 1}`}
+                  disabled={loading}
                 />
               ))}
-              {formData.keyPoints.length < 5 && (
+              {formData.keyPoints.length < 5 && !loading && (
                 <button
                   type="button"
                   onClick={addKeyPoint}
@@ -223,12 +304,16 @@ export default function CopywritingPage() {
                 value={formData.structure}
                 onChange={handleChange}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={loading}
               >
                 <option value="aida">AIDA (Atenção, Interesse, Desejo, Ação)</option>
                 <option value="pas">PAS (Problema, Agitação, Solução)</option>
                 <option value="future-pacing">Future Pacing (Projeção de Futuro)</option>
                 <option value="faq">FAQ (Perguntas e Respostas)</option>
                 <option value="star-story-solution">Estrela-História-Solução</option>
+                <option value="dualpath">Dual Path (Caminho Duplo)</option>
+                <option value="fear">Fear Based (Baseado em Medo)</option>
+                <option value="scarcity">Escassez e Urgência</option>
               </select>
             </div>
             
@@ -244,192 +329,81 @@ export default function CopywritingPage() {
                   value={formData.wordCount}
                   onChange={handleChange}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={loading}
                 >
                   <option value="curto">Curto</option>
                   <option value="médio">Médio</option>
                   <option value="longo">Longo</option>
+                  <option value="muito longo">Muito Longo</option>
                 </select>
               </div>
             )}
             
-            {/* Botão de envio */}
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                disabled={loading}
-                className={cn(
-                  "flex items-center justify-center gap-2",
-                  loading && "opacity-70 cursor-not-allowed"
-                )}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Gerando...
-                  </>
-                ) : (
-                  <>
-                    <Edit className="h-4 w-4" />
-                    Gerar Texto
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading}
+            >
+              {loading ? <Loading /> : "Gerar Copywriting"}
+            </Button>
           </form>
         </div>
-
+        
         {/* Resultado */}
         <div className="space-y-4">
-          <div className="rounded-lg border p-4 shadow-sm min-h-[400px] flex flex-col">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-semibold">Resultado</h2>
-              {result && (
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleCopy}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+          <div className="rounded-lg border p-4 h-full flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Resultado</h3>
+              {result && !loading && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleCopy}
+                  className="h-8 gap-1"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  <span>Copiar</span>
+                </Button>
               )}
             </div>
-
-            <div className="flex-1 relative bg-muted/30 rounded-md p-4">
-              {result ? (
-                <div className="whitespace-pre-wrap">{result}</div>
-              ) : (
-                <div className="text-center p-4 text-muted-foreground flex flex-col items-center justify-center h-full">
-                  <Rocket className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                  <p>Seu texto persuasivo aparecerá aqui</p>
-                  <p className="text-xs mt-2">Preencha o formulário e clique em "Gerar Texto"</p>
+            
+            <div className={cn(
+              "relative flex-grow",
+              loading && "opacity-80"
+            )}>
+              {loading && (
+                <div className="absolute top-0 left-0 right-0 bg-primary/10 text-primary p-3 rounded-t-md flex items-center justify-between z-10">
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm font-medium">{loadingMessage}{loadingDots}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Pode levar até 20 segundos...
+                  </div>
                 </div>
               )}
+              
+              {!result && !loading && (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                  <BookText className="h-16 w-16 mb-4 opacity-20" />
+                  <p>O texto gerado aparecerá aqui</p>
+                  <p className="text-xs mt-1">Preencha o formulário e clique em "Gerar Copywriting"</p>
+                </div>
+              )}
+              
+              <Textarea
+                value={result}
+                readOnly
+                className={cn(
+                  "min-h-[500px] resize-none whitespace-pre-wrap",
+                  loading && "pt-16"
+                )}
+                placeholder={loading ? "Gerando texto..." : "O texto gerado aparecerá aqui..."}
+              />
             </div>
-          </div>
-
-          <div className="bg-primary/10 rounded-lg p-4 text-sm">
-            <h3 className="font-medium mb-2">💡 Dicas para textos persuasivos:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Use palavras de impacto que ativam emoções</li>
-              <li>Foque nos benefícios, não apenas em recursos</li>
-              <li>Adicione gatilhos de escassez e urgência quando relevante</li>
-              <li>Direcione o texto para resolver problemas específicos do público</li>
-            </ul>
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-// Funções de simulação de geração de textos
-function generateHeadline(topic: string, tone: string): string {
-  const headlines = [
-    `🔥 Descubra o Segredo para ${topic} Que Ninguém Te Contou Antes!`,
-    `O Método Comprovado Para ${topic} Em Apenas 30 Dias`,
-    `As 3 Etapas Simples Para Transformar ${topic} Em Resultados Reais`,
-    `ALERTA: A Verdade Sobre ${topic} Que a Maioria Das Pessoas Ignora`,
-    `Como ${topic} Pode Transformar Sua Vida Hoje Mesmo`,
-    `Finalmente Revelado: O Sistema Para ${topic} Sem Sacrifícios`,
-    `[GUIA DEFINITIVO] Domine ${topic} Como Um Profissional`,
-    `Pare de Cometer Estes 5 Erros em ${topic} Agora Mesmo!`
-  ];
-  
-  return headlines[Math.floor(Math.random() * headlines.length)];
-}
-
-function generateParagraph(topic: string, tone: string, keyPoints: string[], structure: string): string {
-  let paragraph = "";
-  
-  if (structure === "aida") {
-    paragraph = `Você já se perguntou como seria dominar ${topic} de uma vez por todas? Imagine alcançar resultados impressionantes sem as frustrações e erros comuns que a maioria comete.\n\n`;
-    
-    paragraph += `O que poucas pessoas sabem é que existe um método comprovado que já ajudou centenas de pessoas a conquistarem resultados excepcionais com ${topic}. `;
-    
-    if (keyPoints.length > 0) {
-      paragraph += `Este método exclusivo oferece benefícios extraordinários como:\n\n`;
-      keyPoints.forEach(point => {
-        if (point) paragraph += `✅ ${point}\n`;
-      });
-      paragraph += "\n";
-    }
-    
-    paragraph += `A oportunidade de transformar sua experiência com ${topic} está ao seu alcance agora. Não perca mais tempo com métodos ultrapassados. Dê o próximo passo hoje mesmo e descubra como podemos te ajudar a alcançar o sucesso que você merece.`;
-  } else if (structure === "pas") {
-    paragraph = `Você está enfrentando dificuldades com ${topic}? Se você é como a maioria das pessoas, provavelmente já tentou várias abordagens sem obter os resultados que realmente deseja.\n\n`;
-    
-    paragraph += `Imagine como seria frustrante continuar tentando, investindo tempo e recursos, apenas para descobrir que você está seguindo o caminho errado. A cada dia que passa sem uma solução eficaz, você pode estar perdendo oportunidades valiosas que não voltarão.\n\n`;
-    
-    if (keyPoints.length > 0) {
-      paragraph += `Felizmente, existe uma solução que resolve exatamente esses problemas. Um método revolucionário que proporciona:\n\n`;
-      keyPoints.forEach(point => {
-        if (point) paragraph += `✅ ${point}\n`;
-      });
-      paragraph += "\n";
-    }
-    
-    paragraph += `Esta é sua chance de finalmente superar seus desafios com ${topic} e alcançar os resultados que você sempre desejou. A decisão está em suas mãos - continue lutando com os mesmos problemas ou dê um passo decisivo em direção à solução definitiva.`;
-  }
-  
-  return paragraph;
-}
-
-function generateEmail(topic: string, tone: string, keyPoints: string[], structure: string): string {
-  let email = `Assunto: A estratégia definitiva para dominar ${topic} está mais próxima do que você imagina\n\n`;
-  
-  email += `Olá,\n\n`;
-  
-  if (structure === "aida") {
-    email += `Você sabia que 83% das pessoas que buscam melhorar em ${topic} estão cometendo os mesmos erros básicos que impedem seu progresso?\n\n`;
-    
-    email += `Recentemente, nossa equipe desenvolveu uma metodologia revolucionária após anos de pesquisa e teste com centenas de clientes reais. Os resultados são simplesmente impressionantes.\n\n`;
-    
-    if (keyPoints.length > 0) {
-      email += `Nosso método exclusivo para ${topic} oferece:\n\n`;
-      keyPoints.forEach(point => {
-        if (point) email += `• ${point}\n`;
-      });
-      email += "\n";
-    }
-    
-    email += `Para celebrar o lançamento oficial desta metodologia, estamos oferecendo acesso antecipado e com condições especiais para nossos primeiros 50 participantes.\n\n`;
-    
-    email += `Clique no link abaixo para garantir sua vaga e transformar sua experiência com ${topic} de uma vez por todas:\n\n`;
-    
-    email += `[BOTÃO: QUERO GARANTIR MINHA VAGA]\n\n`;
-    
-    email += `Não perca esta oportunidade única. As vagas são limitadas e estão sendo preenchidas rapidamente.\n\n`;
-    
-    email += `Atenciosamente,\n\nEquipe SAS IA Platform`;
-  } else {
-    email += `Você está enfrentando algum destes desafios com ${topic}?\n\n`;
-    
-    email += `• Frustração por não ver resultados concretos\n`;
-    email += `• Sensação de estar desperdiçando tempo e recursos\n`;
-    email += `• Dúvidas sobre qual é o melhor caminho a seguir\n\n`;
-    
-    email += `Se você se identificou com algum destes pontos, saiba que você não está sozinho. Milhares de pessoas enfrentam os mesmos obstáculos todos os dias.\n\n`;
-    
-    if (keyPoints.length > 0) {
-      email += `Pensando nisso, desenvolvemos uma solução completa que oferece:\n\n`;
-      keyPoints.forEach(point => {
-        if (point) email += `• ${point}\n`;
-      });
-      email += "\n";
-    }
-    
-    email += `Nosso objetivo é simples: ajudá-lo a superar os desafios de ${topic} com uma metodologia prática e comprovada.\n\n`;
-    
-    email += `Para conhecer todos os detalhes, basta clicar no botão abaixo:\n\n`;
-    
-    email += `[BOTÃO: QUERO CONHECER A SOLUÇÃO]\n\n`;
-    
-    email += `Está na hora de transformar sua relação com ${topic}.\n\n`;
-    
-    email += `Abraços,\n\nEquipe SAS IA Platform`;
-  }
-  
-  return email;
 } 
