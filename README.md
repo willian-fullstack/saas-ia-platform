@@ -58,6 +58,11 @@ npm start
 
 ## Atualizações Recentes
 
+- **Clean Code:**
+  - Remoção de importações não utilizadas no módulo de Landing Pages
+  - Eliminação dos erros de lint no módulo de geração de landing pages
+  - Otimização de código com redução de dependências desnecessárias
+
 - **Experiência de usuário melhorada:** 
   - Animação progressiva de geração de texto para feedback visual em tempo real
   - Interface responsiva e consistente em diferentes módulos
