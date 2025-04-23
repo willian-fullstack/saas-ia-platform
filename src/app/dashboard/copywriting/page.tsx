@@ -6,7 +6,6 @@ import {
   Copy,
   BookText
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -176,6 +175,50 @@ export default function CopywritingPage() {
       .catch(() => toast.error("Erro ao copiar o texto"));
   };
   
+  // Renderizar conteúdo da área de resultado
+  const renderResultContent = () => {
+    if (loading) {
+      return (
+        <div className="relative flex-grow">
+          <div className="absolute top-0 left-0 right-0 bg-primary/10 text-primary p-3 rounded-t-md flex items-center justify-between z-10">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">{loadingMessage}{loadingDots}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Pode levar até 20 segundos...
+            </div>
+          </div>
+          <Textarea
+            value={result}
+            readOnly
+            className="min-h-[500px] resize-none whitespace-pre-wrap pt-16"
+            placeholder="Gerando texto..."
+          />
+        </div>
+      );
+    }
+
+    if (!result) {
+      return (
+        <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground h-full">
+          <BookText className="h-16 w-16 mb-4 opacity-20" />
+          <p>O texto gerado aparecerá aqui</p>
+          <p className="text-xs mt-1">Preencha o formulário e clique em Gerar Copywriting</p>
+        </div>
+      );
+    }
+
+    return (
+      <Textarea
+        value={result}
+        readOnly
+        className="min-h-[500px] resize-none whitespace-pre-wrap"
+        placeholder="O texto gerado aparecerá aqui..."
+      />
+    );
+  };
+  
   return (
     <div className="grid gap-6">
       <div>
@@ -200,13 +243,13 @@ export default function CopywritingPage() {
                 value={formData.topic}
                 onChange={handleChange}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Curso de marketing digital, Produto de emagrecimento..."
+                placeholder="Ex: Curso de marketing digital, Programa de emagrecimento..."
                 required
                 disabled={loading}
               />
             </div>
             
-            {/* Tipo de Copy */}
+            {/* Tipo de Texto */}
             <div className="grid gap-2">
               <Label htmlFor="copyType">
                 Tipo de Texto
@@ -367,39 +410,8 @@ export default function CopywritingPage() {
               )}
             </div>
             
-            <div className={cn(
-              "relative flex-grow",
-              loading && "opacity-80"
-            )}>
-              {loading && (
-                <div className="absolute top-0 left-0 right-0 bg-primary/10 text-primary p-3 rounded-t-md flex items-center justify-between z-10">
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm font-medium">{loadingMessage}{loadingDots}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Pode levar até 20 segundos...
-                  </div>
-                </div>
-              )}
-              
-              {!result && !loading && (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                  <BookText className="h-16 w-16 mb-4 opacity-20" />
-                  <p>O texto gerado aparecerá aqui</p>
-                  <p className="text-xs mt-1">Preencha o formulário e clique em "Gerar Copywriting"</p>
-                </div>
-              )}
-              
-              <Textarea
-                value={result}
-                readOnly
-                className={cn(
-                  "min-h-[500px] resize-none whitespace-pre-wrap",
-                  loading && "pt-16"
-                )}
-                placeholder={loading ? "Gerando texto..." : "O texto gerado aparecerá aqui..."}
-              />
+            <div className="flex-grow">
+              {renderResultContent()}
             </div>
           </div>
         </div>

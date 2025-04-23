@@ -1,26 +1,29 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
 
-const inter = Inter({ subsets: ["latin"] });
+// Otimizando carregamento da fonte
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap', // Garante melhor performance na troca de fontes
+  preload: true
+});
 
 export const metadata: Metadata = {
-  title: "SAS IA Platform - Plataforma All-in-One com IA",
-  description: "Plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e Closers com IA",
+  title: "SAS IA Platform",
+  description: "Plataforma All-in-One com IA para Criadores de Conteúdo",
+  viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

@@ -1,13 +1,29 @@
 import { NextResponse } from "next/server";
 
+// Cache para evitar chamadas repetidas com prompts idênticos
+const apiCache = new Map();
+
 // Função para fazer a chamada à API do DeepSeek
 async function callDeepSeekAPI(prompt: string) {
   try {
+    // Verificar se temos a resposta em cache
+    if (apiCache.has(prompt)) {
+      console.log('Retornando resultado do cache');
+      return apiCache.get(prompt);
+    }
+    
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('API Key não encontrada. Verifique suas variáveis de ambiente.');
+    }
+    
+    console.time('deepseek_api_call');
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-220fd8d5c882490ea62638c826555384'
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
@@ -19,6 +35,7 @@ async function callDeepSeekAPI(prompt: string) {
         max_tokens: 4000
       })
     });
+    console.timeEnd('deepseek_api_call');
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -26,15 +43,35 @@ async function callDeepSeekAPI(prompt: string) {
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    const result = data.choices[0].message.content;
+    
+    // Armazenar em cache para futuras requisições
+    apiCache.set(prompt, result);
+    
+    return result;
   } catch (error) {
     console.error('Error calling DeepSeek API:', error);
     throw error;
   }
 }
 
+// Tempo de expiração em segundos para controlar rate limiting
+const API_COOLDOWN = 2;
+let lastRequestTime = 0;
+
 export async function POST(request: Request) {
   try {
+    // Implementação de controle de rate limiting básico
+    const now = Date.now();
+    const timeSinceLastRequest = (now - lastRequestTime) / 1000; // em segundos
+    
+    if (timeSinceLastRequest < API_COOLDOWN) {
+      const waitTime = API_COOLDOWN - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+    }
+    
+    lastRequestTime = Date.now();
+    
     const data = await request.json();
     const { 
       topic, 

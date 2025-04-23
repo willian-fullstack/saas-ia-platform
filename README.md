@@ -41,11 +41,37 @@ cp .env.local.example .env.local
 
 ## Executando o Projeto
 
+Para iniciar o servidor de desenvolvimento:
+
 ```bash
 npm run dev
 ```
 
 Acesse http://localhost:3000 no seu navegador.
+
+Para construir para produção:
+
+```bash
+npm run build
+npm start
+```
+
+## Atualizações Recentes
+
+- **Experiência de usuário melhorada:** 
+  - Animação progressiva de geração de texto para feedback visual em tempo real
+  - Interface responsiva e consistente em diferentes módulos
+  - Indicadores de status durante o processamento da IA
+
+- **Melhorias técnicas:**
+  - Correção de configurações no `next.config.ts` para compatibilidade com Next.js 15.3+
+  - Otimização da renderização de componentes para evitar duplicações
+  - Implementação de tratamento de erros robusto com timeout para requisições à API
+
+- **Ajustes de performance:**
+  - Código mais limpo e organizado com implementação de funções reutilizáveis
+  - Melhor feedback visual durante o carregamento de operações longas
+  - Desativação automática de campos durante processamento
 
 ## Módulos Implementados
 
@@ -74,6 +100,8 @@ Acesse http://localhost:3000 no seu navegador.
   - Inclusão de desconto com justificativa
   - Elemento de urgência/escassez
   - Formato detalhado ou resumido
+- Animação em tempo real durante a geração da oferta
+- Interface responsiva com exibição progressiva do conteúdo
 
 ### 3. Consultor IA 24h
 - Chat interativo com IA especializada em marketing e copywriting
@@ -130,6 +158,7 @@ sas-ia-platform/
 │   │       ├── offers/          # Página de geração de ofertas
 │   │       └── transcription/   # Página de transcrição de áudio
 │   ├── components/              # Componentes React
+│   │   ├── ai-modules/          # Componentes específicos dos módulos de IA
 │   │   └── ui/                  # Componentes de UI reutilizáveis
 │   └── lib/                     # Funções utilitárias e serviços
 └── public/                      # Arquivos estáticos
@@ -148,7 +177,8 @@ sas-ia-platform/
 2. Defina os detalhes da sua oferta (produto, descrição, público-alvo)
 3. Configure bônus e elementos de persuasão
 4. Clique em "Gerar Oferta"
-5. Utilize o texto produzido em suas campanhas
+5. Acompanhe a geração progressiva do texto
+6. Utilize o texto produzido em suas campanhas
 
 ### Consultor IA 24h
 1. Vá para `/dashboard/consultant`
