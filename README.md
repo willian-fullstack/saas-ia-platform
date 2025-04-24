@@ -93,7 +93,30 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
 - Salvamento automático das criações
 - Preview em tempo real com animação de geração
 
-### 4. Gerenciamento de Criações
+### 4. Consultor IA 24h
+- Chat em tempo real com IA especializada
+- Suporte a múltiplas áreas de expertise:
+  - Marketing Digital (White/Black Hat)
+  - Copywriting Persuasivo
+  - Tráfego Pago
+  - Vendas
+  - Lançamentos Digitais
+  - Redes Sociais
+  - Criação de Conteúdo
+- Funcionalidades:
+  - Respostas rápidas e sem censura
+  - Animação de digitação em tempo real
+  - Histórico de conversas
+  - Configuração de especialidade
+  - Cache inteligente para respostas similares
+  - Salvamento automático das interações
+- Interface moderna e responsiva:
+  - Indicadores visuais de status
+  - Formatação automática de mensagens
+  - Suporte a atalhos de teclado
+  - Modo claro/escuro
+
+### 5. Gerenciamento de Criações
 - Sistema unificado para todas as criações do usuário
 - Organização por tipo de conteúdo
 - Funcionalidades:
@@ -105,7 +128,7 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
 - Exibição de atividades recentes no dashboard
 - Proteção contra acesso não autorizado
 
-### 5. Sistema de Performance
+### 6. Sistema de Performance
 - Monitoramento de tempo de resposta das APIs
 - Cache inteligente para requisições repetidas
 - Rate limiting para proteção da API
@@ -120,23 +143,53 @@ sas-ia-platform/
 │   ├── app/
 │   │   ├── api/                 # Rotas de API
 │   │   │   ├── auth/           # Autenticação
+│   │   │   ├── consultant/     # API do Consultor IA
 │   │   │   ├── copywriting/    # API de Copywriting
 │   │   │   ├── offers/         # API de Ofertas
 │   │   │   └── user-creations/ # Gerenciamento de criações
 │   │   ├── dashboard/          # Interface principal
+│   │   │   ├── consultant/     # Página do Consultor IA
+│   │   │   ├── copywriting/    # Página de Copywriting
+│   │   │   ├── creative/       # Página de Criativos
+│   │   │   ├── offers/         # Página de Ofertas
+│   │   │   └── tools/         # Página de Ferramentas
 │   │   ├── login/             # Página de login
-│   │   └── profile/           # Perfil do usuário
+│   │   ├── profile/           # Perfil do usuário
+│   │   ├── transcription/     # Transcrição de áudio
+│   │   ├── layout.tsx         # Layout principal
+│   │   ├── page.tsx          # Página inicial
+│   │   └── globals.css       # Estilos globais
 │   ├── components/
 │   │   ├── ai-modules/        # Componentes dos módulos de IA
 │   │   │   ├── copywriting/   # Módulo de copywriting
 │   │   │   ├── offers/        # Módulo de ofertas
 │   │   │   └── user-creations/ # Componentes de criações
-│   │   └── ui/               # Componentes de UI reutilizáveis
-│   └── lib/
-│       ├── db/               # Modelos e funções do banco de dados
-│       ├── auth.ts          # Configurações de autenticação
-│       ├── performance.ts   # Utilitários de performance
-│       └── utils.ts         # Funções utilitárias gerais
+│   │   ├── ui/               # Componentes de UI reutilizáveis
+│   │   │   ├── button/       # Botões customizados
+│   │   │   ├── dialog/       # Modais e diálogos
+│   │   │   ├── form/         # Componentes de formulário
+│   │   │   └── theme/        # Componentes de tema
+│   │   ├── logout-button.tsx  # Botão de logout
+│   │   ├── user-profile-button.tsx # Botão de perfil
+│   │   ├── providers.tsx      # Provedores de contexto
+│   │   └── theme-provider.tsx # Provedor de tema
+│   ├── lib/
+│   │   ├── db/               # Modelos e funções do banco de dados
+│   │   │   ├── models/       # Modelos do MongoDB
+│   │   │   └── connect.ts    # Conexão com o banco
+│   │   ├── auth.ts          # Configurações de autenticação
+│   │   ├── performance.ts   # Utilitários de performance
+│   │   └── utils.ts         # Funções utilitárias gerais
+│   └── services/            # Serviços externos e integrações
+├── public/                  # Arquivos estáticos
+├── node_modules/           # Dependências
+├── .env                    # Variáveis de ambiente
+├── .env.example           # Exemplo de variáveis de ambiente
+├── next.config.ts         # Configuração do Next.js
+├── package.json           # Dependências e scripts
+├── postcss.config.js      # Configuração do PostCSS
+├── tailwind.config.js     # Configuração do Tailwind
+└── tsconfig.json          # Configuração do TypeScript
 ```
 
 ## Atualizações Recentes
@@ -146,25 +199,30 @@ sas-ia-platform/
 - Animação progressiva na geração de textos
 - Feedback visual em tempo real para todas as ações
 - Interface responsiva e consistente
+- **Novo:** Animação de digitação no Consultor IA
+- **Novo:** Indicadores visuais de status em tempo real
 
 ### Otimizações de Performance
 - Sistema de cache para requisições à API
-- Rate limiting para proteção dos endpoints
+- Rate limiting otimizado para respostas mais rápidas
 - Paginação e filtragem eficiente de dados
 - Carregamento otimizado de componentes
+- **Novo:** Redução no tempo de resposta do Consultor IA
+- **Novo:** Cache inteligente com duração variável
 
-### Correções
+### Correções e Melhorias
 - Correção do salvamento de ofertas no banco de dados
 - Ajustes na validação de dados
 - Melhorias no tratamento de erros
 - Otimização do uso de memória no cache
+- **Novo:** Remoção de restrições no Consultor IA
+- **Novo:** Melhor gerenciamento de estado nas conversas
 
 ## Próximos Passos
 
 1. **Módulos em Desenvolvimento:**
    - IA de Criativos Visuais
    - IA de Vídeos Curtos
-   - Consultor IA 24h
    - Transcrição de Áudio
 
 2. **Melhorias Planejadas:**

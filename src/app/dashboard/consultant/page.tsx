@@ -6,7 +6,6 @@ import {
   Send,
   User,
   Bot,
-  MessageSquare,
   Settings,
   Clock
 } from "lucide-react";
@@ -20,6 +19,7 @@ interface ChatMessage {
   content: string;
   isUser: boolean;
   timestamp: Date;
+  isTyping?: boolean;
 }
 
 export default function ConsultantPage() {
@@ -68,16 +68,28 @@ export default function ConsultantPage() {
       timestamp: new Date()
     };
     
-    setChatHistory(prev => [...prev, userMessage]);
+    // Adicionar mensagem de "digitando..."
+    const typingMessage: ChatMessage = {
+      id: "typing",
+      content: "",
+      isUser: false,
+      timestamp: new Date(),
+      isTyping: true
+    };
+    
+    setChatHistory(prev => [...prev, userMessage, typingMessage]);
     setMessage("");
     setLoading(true);
     
     try {
       // Preparar histórico para enviar à API (apenas últimas 10 mensagens para contexto)
-      const recentHistory = chatHistory.slice(-10).map(msg => ({
-        content: msg.content,
-        isUser: msg.isUser
-      }));
+      const recentHistory = chatHistory
+        .filter(msg => !msg.isTyping)
+        .slice(-10)
+        .map(msg => ({
+          content: msg.content,
+          isUser: msg.isUser
+        }));
       
       const response = await fetch('/api/consultant', {
         method: 'POST',
@@ -97,28 +109,30 @@ export default function ConsultantPage() {
         throw new Error(data.error || "Erro ao processar solicitação");
       }
       
-      // Adicionar resposta do assistente ao histórico
-      const assistantMessage: ChatMessage = {
-        id: data.messageId || Date.now().toString() + "-ai",
-        content: data.result,
-        isUser: false,
-        timestamp: new Date()
-      };
-      
-      setChatHistory(prev => [...prev, assistantMessage]);
+      // Remover mensagem de digitando e adicionar resposta do assistente
+      setChatHistory(prev => {
+        const withoutTyping = prev.filter(msg => !msg.isTyping);
+        return [...withoutTyping, {
+          id: data.messageId || Date.now().toString() + "-ai",
+          content: data.result,
+          isUser: false,
+          timestamp: new Date()
+        }];
+      });
     } catch (error) {
       console.error("Erro:", error);
       toast.error("Falha ao obter resposta. Tente novamente.");
       
-      // Adicionar mensagem de erro ao histórico
-      const errorMessage: ChatMessage = {
-        id: Date.now().toString() + "-error",
-        content: "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.",
-        isUser: false,
-        timestamp: new Date()
-      };
-      
-      setChatHistory(prev => [...prev, errorMessage]);
+      // Remover mensagem de digitando e adicionar mensagem de erro
+      setChatHistory(prev => {
+        const withoutTyping = prev.filter(msg => !msg.isTyping);
+        return [...withoutTyping, {
+          id: Date.now().toString() + "-error",
+          content: "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.",
+          isUser: false,
+          timestamp: new Date()
+        }];
+      });
     } finally {
       setLoading(false);
     }
@@ -239,11 +253,19 @@ export default function ConsultantPage() {
                     </span>
                   </div>
                   <div className={`text-sm ${msg.isUser ? "text-primary-foreground" : ""}`}>
-                    {msg.content.split("\n").map((line, i) => (
-                      <p key={i} className={i > 0 ? "mt-1" : ""}>
-                        {line}
-                      </p>
-                    ))}
+                    {msg.isTyping ? (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    ) : (
+                      msg.content.split("\n").map((line, i) => (
+                        <p key={i} className={i > 0 ? "mt-1" : ""}>
+                          {line}
+                        </p>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
