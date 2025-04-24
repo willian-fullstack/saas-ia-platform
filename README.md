@@ -11,6 +11,10 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
 - **Autenticação:** NextAuth.js com autenticação via Google
 - **Cache:** Sistema de cache em memória para otimização de requisições
 - **Monitoramento:** Sistema próprio de logging e monitoramento de performance
+- **Gerenciamento de Estado:** React Hooks e Context API
+- **Validação:** Zod para validação de dados
+- **Formatação de Data:** date-fns com suporte a pt-BR
+- **UI/UX:** Sistema de feedback visual em tempo real
 
 ## Requisitos
 
@@ -74,16 +78,37 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
 - Sistema de cache para otimização de requisições
 - Salvamento e gerenciamento de criações
 
-### 3. Gerenciamento de Criações
+### 3. IA de Ofertas
+- Geração de ofertas persuasivas completas
+- Configurações personalizáveis:
+  - Nicho e produto
+  - Público-alvo
+  - Faixa de preço
+  - Quantidade de bônus (1-7)
+  - Pontos de dor do público
+  - Elementos de desconto e urgência
+- Formatos de saída:
+  - Oferta completa detalhada
+  - Resumo em tópicos
+- Salvamento automático das criações
+- Preview em tempo real com animação de geração
+
+### 4. Gerenciamento de Criações
 - Sistema unificado para todas as criações do usuário
 - Organização por tipo de conteúdo
-- Funcionalidades CRUD completas
-- Validação de dados com Zod
+- Funcionalidades:
+  - Listagem com filtros
+  - Preview do conteúdo
+  - Download em formato apropriado
+  - Cópia rápida para clipboard
+  - Visualização de landing pages
+- Exibição de atividades recentes no dashboard
 - Proteção contra acesso não autorizado
 
-### 4. Sistema de Performance
+### 5. Sistema de Performance
 - Monitoramento de tempo de resposta das APIs
 - Cache inteligente para requisições repetidas
+- Rate limiting para proteção da API
 - Logs detalhados para debugging
 - Tratamento robusto de erros
 
@@ -96,15 +121,16 @@ sas-ia-platform/
 │   │   ├── api/                 # Rotas de API
 │   │   │   ├── auth/           # Autenticação
 │   │   │   ├── copywriting/    # API de Copywriting
-│   │   │   ├── user-creations/ # Gerenciamento de criações
-│   │   │   └── user/          # Dados do usuário
+│   │   │   ├── offers/         # API de Ofertas
+│   │   │   └── user-creations/ # Gerenciamento de criações
 │   │   ├── dashboard/          # Interface principal
 │   │   ├── login/             # Página de login
 │   │   └── profile/           # Perfil do usuário
 │   ├── components/
 │   │   ├── ai-modules/        # Componentes dos módulos de IA
 │   │   │   ├── copywriting/   # Módulo de copywriting
-│   │   │   └── creative/      # Módulo de criativos (em desenvolvimento)
+│   │   │   ├── offers/        # Módulo de ofertas
+│   │   │   └── user-creations/ # Componentes de criações
 │   │   └── ui/               # Componentes de UI reutilizáveis
 │   └── lib/
 │       ├── db/               # Modelos e funções do banco de dados
@@ -112,6 +138,26 @@ sas-ia-platform/
 │       ├── performance.ts   # Utilitários de performance
 │       └── utils.ts         # Funções utilitárias gerais
 ```
+
+## Atualizações Recentes
+
+### Melhorias de UX
+- Implementação de listagem de criações recentes no dashboard
+- Animação progressiva na geração de textos
+- Feedback visual em tempo real para todas as ações
+- Interface responsiva e consistente
+
+### Otimizações de Performance
+- Sistema de cache para requisições à API
+- Rate limiting para proteção dos endpoints
+- Paginação e filtragem eficiente de dados
+- Carregamento otimizado de componentes
+
+### Correções
+- Correção do salvamento de ofertas no banco de dados
+- Ajustes na validação de dados
+- Melhorias no tratamento de erros
+- Otimização do uso de memória no cache
 
 ## Próximos Passos
 

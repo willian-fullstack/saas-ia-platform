@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Edit, Image as ImageIcon, Video, Layout, Gift, MessageSquare } from "lucide-react";
 import { useRequireAuth } from "@/lib/auth";
+import { UserCreationsList } from "@/components/ai-modules/user-creations/UserCreationsList";
 
 export default function Dashboard() {
   const { isLoading } = useRequireAuth();
@@ -136,15 +137,9 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Lista de criações recentes */}
       <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-4">Atividade Recente</h2>
-        <div className="rounded-lg border shadow-sm">
-          <div className="p-4">
-            <p className="text-muted-foreground text-center py-8">
-              Sem atividades recentes. Comece a usar as ferramentas!
-            </p>
-          </div>
-        </div>
+        <UserCreationsList limit={5} className="rounded-lg border shadow-sm p-4" />
       </div>
     </div>
   );

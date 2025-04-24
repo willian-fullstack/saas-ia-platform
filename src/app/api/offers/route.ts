@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { measureExecutionTime, MemoryCache } from "@/lib/performance";
+import { saveUserCreation } from '@/lib/db/models/UserCreation';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Tipo para os dados do formulário
 interface OffersFormData {
@@ -80,6 +83,12 @@ let lastRequestTime = 0;
 export async function POST(request: Request) {
   return await measureExecutionTime(async () => {
     try {
+      // Verificar autenticação
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.email || !session?.user?.id) {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      }
+
       // Implementação de controle de rate limiting básico
       const now = Date.now();
       const timeSinceLastRequest = (now - lastRequestTime) / 1000; // em segundos
@@ -158,7 +167,26 @@ export async function POST(request: Request) {
       // Realizar a chamada para o DeepSeek API
       const result = await callDeepSeekAPI(prompt);
 
-      return NextResponse.json({ result });
+      // Salvar a criação no banco de dados
+      const userId = session.user.id;
+      const title = `Oferta: ${productName}`;
+      const content = {
+        niche,
+        productName,
+        productDescription,
+        targetAudience,
+        pricePoint,
+        bonusCount: safeBonusCount,
+        painPoints,
+        includeDiscount,
+        includeUrgency,
+        contentType,
+        result
+      };
+
+      const creation = await saveUserCreation(userId, title, 'offer', content);
+
+      return NextResponse.json({ result, creation });
 
     } catch (error) {
       console.error('Erro ao processar solicitação:', error);
