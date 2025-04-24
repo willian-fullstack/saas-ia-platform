@@ -153,11 +153,11 @@ export default function CopywritingPage() {
         
         // Pequena pausa para criar efeito de digitação
         if (i < words.length - 5) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 30));
         }
       }
       
-      // Salvar a criação no banco de dados
+      // Salvar a criação
       try {
         const saveResponse = await fetch('/api/user-creations', {
           method: 'POST',
@@ -165,7 +165,7 @@ export default function CopywritingPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            title: `${formData.copyType} - ${formData.topic}`,
+            title: `Copy - ${formData.topic.substring(0, 50)}...`,
             type: 'copywriting',
             content: {
               topic: formData.topic,
@@ -179,16 +179,17 @@ export default function CopywritingPage() {
             }
           })
         });
-        
+
         if (!saveResponse.ok) {
-          console.error('Erro ao salvar criação:', await saveResponse.json());
+          const errorData = await saveResponse.json();
+          throw new Error(errorData.error || 'Erro ao salvar criação');
         }
+
+        toast.success("Texto gerado e salvo com sucesso!");
       } catch (saveError) {
         console.error('Erro ao salvar criação:', saveError);
-        // Não exibir erro para o usuário, pois o texto já foi gerado
+        toast.error("O texto foi gerado mas não foi possível salvá-lo");
       }
-      
-      toast.success("Copywriting gerado com sucesso!");
     } catch (error) {
       console.error("Erro:", error);
       toast.error(`Falha ao gerar o texto: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);

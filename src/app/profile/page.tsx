@@ -96,7 +96,7 @@ export default function Profile() {
       });
       
       if (response.ok) {
-        toast.success("Perfil atualizado com sucesso!");
+      toast.success("Perfil atualizado com sucesso!");
       } else {
         const data = await response.json();
         throw new Error(data.error || "Erro ao atualizar perfil");
@@ -124,7 +124,7 @@ export default function Profile() {
       });
       
       if (response.ok) {
-        toast.success("Configurações de notificações atualizadas!");
+      toast.success("Configurações de notificações atualizadas!");
       } else {
         const data = await response.json();
         throw new Error(data.error || "Erro ao atualizar notificações");

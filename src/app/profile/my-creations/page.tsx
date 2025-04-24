@@ -53,13 +53,18 @@ export default function MyCreationsPage() {
       
       try {
         setIsLoading(true);
+        console.log('Buscando criações...'); // Log para debug
+        
         const response = await fetch('/api/user-creations');
         
         if (!response.ok) {
-          throw new Error('Erro ao carregar criações');
+          const error = await response.json();
+          console.error('Erro na resposta:', error); // Log para debug
+          throw new Error(error.error || 'Erro ao carregar criações');
         }
         
         const data = await response.json();
+        console.log('Criações carregadas:', data.creations?.length || 0); // Log para debug
         setCreations(data.creations || []);
       } catch (error) {
         console.error('Erro ao carregar criações:', error);

@@ -4,18 +4,23 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
 
 ## Tecnologias Utilizadas
 
-- **Frontend:** React, Next.js, Tailwind CSS, shadcn/ui, Lucide React
-- **Backend:** Next.js API Routes
+- **Frontend:** React, Next.js 14+, Tailwind CSS, shadcn/ui, Lucide React
+- **Backend:** Next.js API Routes com Edge Runtime
 - **IA:** OpenAI GPT-4-turbo, DeepSeek Chat API
-- **Banco de Dados:** A ser implementado
-- **Autenticação:** NextAuth.js (a ser implementado)
+- **Banco de Dados:** MongoDB com Mongoose
+- **Autenticação:** NextAuth.js com autenticação via Google
+- **Cache:** Sistema de cache em memória para otimização de requisições
+- **Monitoramento:** Sistema próprio de logging e monitoramento de performance
 
 ## Requisitos
 
 - Node.js 18+ LTS
 - NPM ou Yarn
-- Chave de API da OpenAI
-- Chave de API da DeepSeek (para o módulo de Copywriting Black)
+- MongoDB (local ou Atlas)
+- Chaves de API:
+  - OpenAI API Key
+  - DeepSeek API Key
+  - Google OAuth Client ID e Secret
 
 ## Instalação
 
@@ -30,186 +35,114 @@ cd sas-ia-platform
 npm install
 ```
 
-3. Copie o arquivo de exemplo de variáveis de ambiente e configure suas chaves:
+3. Configure as variáveis de ambiente:
 ```bash
-cp .env.local.example .env.local
+cp .env.example .env.local
 ```
 
-4. Edite o arquivo `.env.local` e adicione suas chaves de API:
-   - `OPENAI_API_KEY`: Sua chave da API da OpenAI
-   - `DEEPSEEK_API_KEY`: Sua chave da API da DeepSeek
-
-## Executando o Projeto
-
-Para iniciar o servidor de desenvolvimento:
-
-```bash
-npm run dev
+4. Configure as seguintes variáveis no arquivo `.env.local`:
 ```
-
-Acesse http://localhost:3000 no seu navegador.
-
-Para construir para produção:
-
-```bash
-npm run build
-npm start
+MONGODB_URI=sua_uri_do_mongodb
+NEXTAUTH_SECRET=seu_secret_para_nextauth
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=seu_client_id_do_google
+GOOGLE_CLIENT_SECRET=seu_client_secret_do_google
+OPENAI_API_KEY=sua_chave_da_openai
+DEEPSEEK_API_KEY=sua_chave_da_deepseek
 ```
-
-## Atualizações Recentes
-
-- **Clean Code:**
-  - Remoção de importações não utilizadas no módulo de Landing Pages
-  - Eliminação dos erros de lint no módulo de geração de landing pages
-  - Otimização de código com redução de dependências desnecessárias
-
-- **Experiência de usuário melhorada:** 
-  - Animação progressiva de geração de texto para feedback visual em tempo real
-  - Interface responsiva e consistente em diferentes módulos
-  - Indicadores de status durante o processamento da IA
-
-- **Melhorias técnicas:**
-  - Correção de configurações no `next.config.ts` para compatibilidade com Next.js 15.3+
-  - Otimização da renderização de componentes para evitar duplicações
-  - Implementação de tratamento de erros robusto com timeout para requisições à API
-
-- **Ajustes de performance:**
-  - Código mais limpo e organizado com implementação de funções reutilizáveis
-  - Melhor feedback visual durante o carregamento de operações longas
-  - Desativação automática de campos durante processamento
 
 ## Módulos Implementados
 
-### 1. IA de Landing Pages
-- Gera código HTML completo para landing pages de alta conversão
-- Personalização por:
-  - Nicho de mercado
-  - Produto/serviço
-  - Benefícios principais (até 6)
-  - Público-alvo
-  - Call-to-action
-  - Opção de incluir seção de depoimentos
-  - Preço/oferta
-  - Estilo visual (minimalista, moderno, colorido, corporativo, elegante)
-- Código pronto para copiar e usar em qualquer plataforma
+### 1. Sistema de Autenticação
+- Login via Google OAuth
+- Proteção de rotas
+- Gerenciamento de sessão
+- Perfil do usuário
 
-### 2. IA de Ofertas
-- Cria textos persuasivos para ofertas de produtos/serviços
-- Configurações:
-  - Nicho e nome do produto
-  - Descrição detalhada
+### 2. IA de Copywriting
+- Geração de textos persuasivos sem restrições
+- Suporte a múltiplos tipos de copy:
+  - Headlines
+  - Email Marketing
+  - Black Hat Marketing
+  - Scripts de Vídeo
+- Configurações avançadas:
+  - Tom da mensagem personalizado
+  - Estruturas de persuasão (AIDA, PAS, etc.)
   - Público-alvo específico
-  - Faixa de preço (baixo, médio, alto, premium)
-  - Quantidade de bônus (1-7)
-  - Pontos de dor do público
-  - Inclusão de desconto com justificativa
-  - Elemento de urgência/escassez
-  - Formato detalhado ou resumido
-- Animação em tempo real durante a geração da oferta
-- Interface responsiva com exibição progressiva do conteúdo
+  - Pontos-chave customizáveis
+- Sistema de cache para otimização de requisições
+- Salvamento e gerenciamento de criações
 
-### 3. Consultor IA 24h
-- Chat interativo com IA especializada em marketing e copywriting
-- Recursos:
-  - Interface de chat completa em tempo real
-  - Seleção de área de especialidade (marketing digital, copywriting, tráfego pago, etc.)
-  - Histórico de conversa persistente
-  - Suporte a perguntas complexas sobre estratégias de marketing
+### 3. Gerenciamento de Criações
+- Sistema unificado para todas as criações do usuário
+- Organização por tipo de conteúdo
+- Funcionalidades CRUD completas
+- Validação de dados com Zod
+- Proteção contra acesso não autorizado
 
-### 4. Transcrição de Áudio
-- Converte arquivos de áudio em texto
-- Recursos:
-  - Upload de arquivos de áudio
-  - Processamento rápido
-  - Resultado em formato editável
-  - Opção para copiar texto para clipboard
-
-### 5. IA de Copywriting Black
-- Gera textos persuasivos sem restrições para diversas finalidades
-- Recursos:
-  - Múltiplos tipos de texto (Headlines, Email Marketing, Black Hat Marketing)
-  - Diferentes tons de mensagem (Persuasivo, Agressivo, Manipulador, etc.)
-  - Estruturas de persuasão personalizáveis (AIDA, PAS, Escassez, Fear Based)
-  - Feedback visual em tempo real durante a geração
-  - Interface responsiva com exibição progressiva do conteúdo
-  - Sem censura ou restrição de conteúdo
-
-## Módulos em Desenvolvimento
-
-- **IA de Criativos Visuais**
-  - Geração de imagens para anúncios e redes sociais
-
-- **IA de Vídeos Curtos**
-  - Scripts e estruturas para conteúdo viral
-
-- **Roteiro para Shorts**
-  - Fórmulas de storytelling otimizadas para plataformas de vídeo curto
+### 4. Sistema de Performance
+- Monitoramento de tempo de resposta das APIs
+- Cache inteligente para requisições repetidas
+- Logs detalhados para debugging
+- Tratamento robusto de erros
 
 ## Estrutura do Projeto
 
 ```
 sas-ia-platform/
 ├── src/
-│   ├── app/                     # Páginas da aplicação (Next.js App Router)
-│   │   ├── api/                 # Rotas de API para os módulos de IA
-│   │   │   ├── consultant/      # API para o Consultor IA 24h
-│   │   │   ├── copywriting/     # API para Copywriting Black
-│   │   │   ├── landing-pages/   # API para geração de landing pages
-│   │   │   └── offers/          # API para geração de ofertas
-│   │   └── dashboard/           # Interface do usuário
-│   │       ├── consultant/      # Página do Consultor IA
-│   │       ├── copywriting/     # Página de geração de copywriting
-│   │       ├── landing-pages/   # Página de geração de landing pages
-│   │       ├── offers/          # Página de geração de ofertas
-│   │       └── transcription/   # Página de transcrição de áudio
-│   ├── components/              # Componentes React
-│   │   ├── ai-modules/          # Componentes específicos dos módulos de IA
-│   │   └── ui/                  # Componentes de UI reutilizáveis
-│   └── lib/                     # Funções utilitárias e serviços
-└── public/                      # Arquivos estáticos
+│   ├── app/
+│   │   ├── api/                 # Rotas de API
+│   │   │   ├── auth/           # Autenticação
+│   │   │   ├── copywriting/    # API de Copywriting
+│   │   │   ├── user-creations/ # Gerenciamento de criações
+│   │   │   └── user/          # Dados do usuário
+│   │   ├── dashboard/          # Interface principal
+│   │   ├── login/             # Página de login
+│   │   └── profile/           # Perfil do usuário
+│   ├── components/
+│   │   ├── ai-modules/        # Componentes dos módulos de IA
+│   │   │   ├── copywriting/   # Módulo de copywriting
+│   │   │   └── creative/      # Módulo de criativos (em desenvolvimento)
+│   │   └── ui/               # Componentes de UI reutilizáveis
+│   └── lib/
+│       ├── db/               # Modelos e funções do banco de dados
+│       ├── auth.ts          # Configurações de autenticação
+│       ├── performance.ts   # Utilitários de performance
+│       └── utils.ts         # Funções utilitárias gerais
 ```
 
-## Uso dos Módulos
+## Próximos Passos
 
-### IA de Landing Pages
-1. Navegue para `/dashboard/landing-pages`
-2. Preencha os campos do formulário (nicho, produto, benefícios, etc.)
-3. Clique em "Gerar Landing Page"
-4. Copie o código HTML gerado para usar em qualquer plataforma
+1. **Módulos em Desenvolvimento:**
+   - IA de Criativos Visuais
+   - IA de Vídeos Curtos
+   - Consultor IA 24h
+   - Transcrição de Áudio
 
-### IA de Ofertas
-1. Acesse `/dashboard/offers`
-2. Defina os detalhes da sua oferta (produto, descrição, público-alvo)
-3. Configure bônus e elementos de persuasão
-4. Clique em "Gerar Oferta"
-5. Acompanhe a geração progressiva do texto
-6. Utilize o texto produzido em suas campanhas
+2. **Melhorias Planejadas:**
+   - Implementação de testes automatizados
+   - Sistema de métricas e analytics
+   - Otimização de performance
+   - Expansão do sistema de cache
 
-### Consultor IA 24h
-1. Vá para `/dashboard/consultant`
-2. Selecione a área de especialidade de seu interesse
-3. Faça perguntas sobre marketing, copywriting, estratégias digitais
-4. Receba respostas personalizadas da IA
-
-### Transcrição de Áudio
-1. Acesse `/dashboard/transcription`
-2. Faça upload do arquivo de áudio que deseja transcrever
-3. Clique em "Transcrever Áudio"
-4. Visualize o resultado da transcrição e utilize as opções para copiar ou limpar o texto
-
-### IA de Copywriting Black
-1. Acesse `/dashboard/copywriting`
-2. Selecione o tipo de texto e o tom da mensagem desejados
-3. Preencha o tópico/produto e os pontos-chave
-4. Escolha a estrutura de persuasão e o tamanho do texto
-5. Clique em "Gerar Copywriting"
-6. Acompanhe o processo de geração em tempo real
-7. Ao finalizar, utilize o botão de cópia para usar o texto
+3. **Novas Funcionalidades:**
+   - Integração com mais APIs de IA
+   - Sistema de templates personalizados
+   - Exportação de dados
+   - Dashboards analíticos
 
 ## Contribuição
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
+Para contribuir com o projeto:
+
+1. Faça um fork do repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Faça commit das mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Abra um Pull Request
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT. 
+Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes. 

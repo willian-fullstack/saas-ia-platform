@@ -10,6 +10,7 @@ import {
   getUserCreationById,
   deleteUserCreation
 } from '@/lib/db/models/UserCreation';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Validação do corpo da requisição para salvar uma criação
 const saveCreationSchema = z.object({
@@ -22,8 +23,8 @@ const saveCreationSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Verificar autenticação
-    const session = await getServerSession();
-    if (!session?.user?.email) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !session?.user?.id) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
@@ -49,25 +50,33 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Buscar criações do usuário
-    const userId = session.user.id;
-    let creations;
-    
-    if (type) {
-      // Verificar se o tipo é válido
-      const validTypes = ['copywriting', 'landing-page', 'offer', 'creative', 'video', 'consultant'];
-      if (!validTypes.includes(type)) {
-        return NextResponse.json({ error: 'Tipo de criação inválido' }, { status: 400 });
+    try {
+      // Buscar criações do usuário
+      const userId = session.user.id;
+      let creations;
+      
+      if (type) {
+        // Verificar se o tipo é válido
+        const validTypes = ['copywriting', 'landing-page', 'offer', 'creative', 'video', 'consultant'];
+        if (!validTypes.includes(type)) {
+          return NextResponse.json({ error: 'Tipo de criação inválido' }, { status: 400 });
+        }
+        
+        creations = await getUserCreationsByType(userId, type as CreationType);
+      } else {
+        creations = await getUserCreations(userId);
       }
       
-      creations = await getUserCreationsByType(userId, type as CreationType);
-    } else {
-      creations = await getUserCreations(userId);
+      return NextResponse.json({ creations });
+    } catch (error) {
+      console.error('Erro ao buscar criações:', error);
+      return NextResponse.json(
+        { error: 'Erro ao buscar criações' }, 
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json({ creations });
   } catch (error) {
-    console.error('Erro ao buscar criações:', error);
+    console.error('Erro ao processar requisição:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' }, 
       { status: 500 }
@@ -79,8 +88,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verificar autenticação
-    const session = await getServerSession();
-    if (!session?.user?.email) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !session?.user?.id) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
@@ -96,15 +105,23 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Salvar a criação
-    const userId = session.user.id;
-    const { title, type, content } = result.data;
-    
-    const creation = await saveUserCreation(userId, title, type as CreationType, content);
-    
-    return NextResponse.json({ creation }, { status: 201 });
+    try {
+      // Salvar a criação
+      const userId = session.user.id;
+      const { title, type, content } = result.data;
+      
+      const creation = await saveUserCreation(userId, title, type as CreationType, content);
+      
+      return NextResponse.json({ creation }, { status: 201 });
+    } catch (saveError) {
+      console.error('Erro ao salvar criação:', saveError);
+      return NextResponse.json(
+        { error: 'Erro ao salvar criação' }, 
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error('Erro ao salvar criação:', error);
+    console.error('Erro ao processar requisição:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' }, 
       { status: 500 }
@@ -116,7 +133,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Verificar autenticação
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
