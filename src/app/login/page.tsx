@@ -9,8 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useRedirectIfAuthenticated } from "@/lib/auth";
 
 export default function Login() {
+  const router = useRouter();
+  const { isLoading: isAuthLoading } = useRedirectIfAuthenticated();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -29,15 +34,22 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      // Aqui seria a lógica de autenticação real
-      // Simulando delay para demonstração
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: loginEmail,
+        password: loginPassword,
+      });
       
-      // Simulando login bem-sucedido
+      if (result?.error) {
+        toast.error("Falha no login. Verifique suas credenciais.");
+        return;
+      }
+      
       toast.success("Login realizado com sucesso!");
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
     } catch (error) {
-      toast.error("Falha no login. Verifique suas credenciais.");
+      toast.error("Ocorreu um erro ao realizar o login. Tente novamente.");
+      console.error("Erro de login:", error);
     } finally {
       setIsLoading(false);
     }
@@ -54,18 +66,48 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      // Aqui seria a lógica de registro real
-      // Simulando delay para demonstração
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Fazer uma chamada para a API de registro
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: registerName,
+          email: registerEmail,
+          password: registerPassword,
+        }),
+      });
       
-      // Simulando registro bem-sucedido
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Erro ao registrar");
+      }
+      
       toast.success("Cadastro realizado com sucesso! Faça login para continuar.");
+      
+      // Limpar o formulário
+      setRegisterName("");
+      setRegisterEmail("");
+      setRegisterPassword("");
+      setRegisterConfirmPassword("");
+      
     } catch (error) {
-      toast.error("Falha no cadastro. Tente novamente mais tarde.");
+      toast.error(error instanceof Error ? error.message : "Falha no cadastro. Tente novamente mais tarde.");
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Se estiver carregando a autenticação, mostra um estado de carregamento
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col bg-muted/20">

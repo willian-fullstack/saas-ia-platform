@@ -329,7 +329,7 @@ export default function LandingPagesPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Erro ao gerar a landing page');
       }
-
+      
       const data = await response.json();
       const codeContent = data.result;
       
@@ -346,6 +346,38 @@ export default function LandingPagesPage() {
         if (i < codeLines.length - 3) {
           await new Promise(resolve => setTimeout(resolve, 30));
         }
+      }
+      
+      // Salvar landing page no banco de dados
+      try {
+        const saveResponse = await fetch('/api/user-creations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: `Landing Page - ${formData.product}`,
+            type: 'landing-page',
+            content: {
+              title: formData.product,
+              niche: formData.niche,
+              benefits: filteredBenefits,
+              targetAudience: formData.targetAudience,
+              callToAction: formData.callToAction,
+              pricing: formData.pricing,
+              style: formData.style,
+              testimonials: formData.testimonials,
+              result: codeContent
+            }
+          })
+        });
+        
+        if (!saveResponse.ok) {
+          console.error('Erro ao salvar landing page:', await saveResponse.json());
+        }
+      } catch (saveError) {
+        console.error('Erro ao salvar landing page:', saveError);
+        // Não exibir erro para o usuário, pois a landing page já foi gerada
       }
       
       toast.success("Landing page gerada com sucesso!");

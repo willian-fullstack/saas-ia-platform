@@ -1,7 +1,21 @@
+"use client";
+
 import Link from "next/link";
 import { Edit, Image as ImageIcon, Video, Layout, Gift, MessageSquare } from "lucide-react";
+import { useRequireAuth } from "@/lib/auth";
 
 export default function Dashboard() {
+  const { isLoading } = useRequireAuth();
+
+  // Estado de carregamento enquanto verifica a autenticação
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <div>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Bell, Settings, User, Menu, Home, Edit, Image as ImageIcon, Video, Layout, Gift, MessageSquare, Sparkles } from "lucide-react";
 import { ThemeProvider } from "@/components/theme-provider";
+import { UserProfileButton } from "@/components/user-profile-button";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -113,10 +114,7 @@ function Header() {
           <Settings className="h-5 w-5" />
           <span className="sr-only">Configurações</span>
         </Link>
-        <Link href="/profile" prefetch={false} className="inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground">
-          <User className="h-5 w-5" />
-          <span className="sr-only">Perfil</span>
-        </Link>
+        <UserProfileButton />
       </div>
     </header>
   );

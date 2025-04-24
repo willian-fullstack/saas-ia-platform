@@ -14,6 +14,14 @@ async function callDeepSeekAPI(prompt: string) {
     
     const apiKey = process.env.DEEPSEEK_API_KEY;
     
+    // Log para debug - vamos mascarar parte da chave por segurança
+    if (apiKey) {
+      const maskedKey = apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4);
+      console.log('Usando chave de API:', maskedKey);
+    } else {
+      console.log('ERRO: Chave de API não encontrada!');
+    }
+    
     if (!apiKey) {
       throw new Error('API Key não encontrada. Verifique suas variáveis de ambiente.');
     }
@@ -39,7 +47,25 @@ async function callDeepSeekAPI(prompt: string) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`API error: ${JSON.stringify(errorData)}`);
+      console.error('Resposta de erro da API DeepSeek:', JSON.stringify(errorData));
+      
+      // APENAS PARA TESTE: Se a API falhar, retornar um texto de exemplo
+      // Remova este código em produção!
+      console.log('ATENÇÃO: Usando resposta simulada devido a falha na API');
+      return `[TEXTO SIMULADO - API INDISPONÍVEL] 
+      
+      Headline atraente para: ${prompt.substring(0, 50)}...
+      
+      Este é um texto simulado porque a API do DeepSeek está retornando um erro de autenticação.
+      Para resolver este problema, você precisa:
+      1. Verificar se a chave API está correta no arquivo .env.local
+      2. Verificar se sua conta DeepSeek está ativa e com créditos disponíveis
+      3. Contatar o suporte do DeepSeek se o problema persistir
+      
+      Por favor, atualize sua chave API ou resolva o problema de autenticação.`;
+      
+      // Em produção, use apenas o código abaixo:
+      // throw new Error(`API error: ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
@@ -51,7 +77,19 @@ async function callDeepSeekAPI(prompt: string) {
     return result;
   } catch (error) {
     console.error('Error calling DeepSeek API:', error);
-    throw error;
+    
+    // APENAS PARA TESTE: Se ocorrer um erro, retornar um texto de exemplo
+    // Remova este código em produção!
+    console.log('ATENÇÃO: Usando resposta simulada devido a exceção no código');
+    return `[TEXTO SIMULADO - ERRO INTERNO] 
+    
+    Headline para: ${prompt.substring(0, 50)}...
+    
+    Este é um texto simulado porque ocorreu um erro ao chamar a API.
+    Verifique os logs do servidor para mais detalhes sobre o erro.`;
+    
+    // Em produção, use apenas o código abaixo:
+    // throw error;
   }
 }
 

@@ -1,43 +1,109 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Settings, Shield, CreditCard, Bell, ArrowLeft } from "lucide-react";
+import { User, Shield, CreditCard, Bell, ArrowLeft, Edit } from "lucide-react";
 import { toast } from "sonner";
+import { useRequireAuth } from "@/lib/auth";
 
 export default function Profile() {
+  const { isLoading: authLoading } = useRequireAuth();
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Mock user data
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [userData, setUserData] = useState({
-    name: "João Silva",
-    email: "joao.silva@exemplo.com",
-    bio: "Especialista em marketing digital e criação de conteúdo para redes sociais.",
-    company: "Marketing Digital Ltda",
-    phone: "(11) 99999-9999",
+    name: "",
+    email: "",
+    bio: "",
+    company: "",
+    phone: "",
     notifications: {
       email: true,
       marketing: false,
       updates: true
     }
   });
+
+  // Carregar dados do usuário da API
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session?.user) return;
+      
+      try {
+        setIsProfileLoading(true);
+        const response = await fetch('/api/user/profile');
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserData({
+            name: data.user.name || "",
+            email: data.user.email || "",
+            bio: data.user.bio || "",
+            company: data.user.company || "",
+            phone: data.user.phone || "",
+            notifications: data.user.notifications || {
+              email: true,
+              marketing: false,
+              updates: true
+            }
+          });
+        } else {
+          // Fallback para dados da sessão
+          setUserData(prevData => ({
+            ...prevData,
+            name: session.user?.name || "",
+            email: session.user?.email || "",
+          }));
+        }
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error);
+        // Fallback para dados da sessão
+        setUserData(prevData => ({
+          ...prevData,
+          name: session.user?.name || "",
+          email: session.user?.email || "",
+        }));
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+    
+    if (session?.user && !authLoading) {
+      fetchUserProfile();
+    }
+  }, [session, authLoading]);
   
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
-      // Simulando delay para demonstração
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userData.name,
+          bio: userData.bio,
+          company: userData.company,
+          phone: userData.phone
+        })
+      });
       
-      toast.success("Perfil atualizado com sucesso!");
+      if (response.ok) {
+        toast.success("Perfil atualizado com sucesso!");
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || "Erro ao atualizar perfil");
+      }
     } catch (error) {
-      toast.error("Erro ao atualizar perfil. Tente novamente mais tarde.");
+      console.error("Erro:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar perfil");
     } finally {
       setIsLoading(false);
     }
@@ -48,12 +114,24 @@ export default function Profile() {
     setIsLoading(true);
     
     try {
-      // Simulando delay para demonstração
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userData.name, // Nome é obrigatório na API
+          notifications: userData.notifications
+        })
+      });
       
-      toast.success("Configurações de notificações atualizadas!");
+      if (response.ok) {
+        toast.success("Configurações de notificações atualizadas!");
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || "Erro ao atualizar notificações");
+      }
     } catch (error) {
-      toast.error("Erro ao atualizar notificações. Tente novamente mais tarde.");
+      console.error("Erro:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar notificações");
     } finally {
       setIsLoading(false);
     }
@@ -143,6 +221,14 @@ export default function Profile() {
               >
                 <CreditCard className="h-5 w-5" />
                 <span>Assinatura</span>
+              </Link>
+              
+              <Link 
+                href="/profile/my-creations" 
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-accent"
+              >
+                <Edit className="h-5 w-5" />
+                <span>Minhas Criações</span>
               </Link>
             </div>
           </div>

@@ -157,6 +157,37 @@ export default function CopywritingPage() {
         }
       }
       
+      // Salvar a criação no banco de dados
+      try {
+        const saveResponse = await fetch('/api/user-creations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: `${formData.copyType} - ${formData.topic}`,
+            type: 'copywriting',
+            content: {
+              topic: formData.topic,
+              copyType: formData.copyType,
+              tone: formData.tone,
+              targetAudience: formData.targetAudience,
+              keyPoints: filteredKeyPoints,
+              structure: formData.structure,
+              wordCount: formData.wordCount,
+              result: textContent
+            }
+          })
+        });
+        
+        if (!saveResponse.ok) {
+          console.error('Erro ao salvar criação:', await saveResponse.json());
+        }
+      } catch (saveError) {
+        console.error('Erro ao salvar criação:', saveError);
+        // Não exibir erro para o usuário, pois o texto já foi gerado
+      }
+      
       toast.success("Copywriting gerado com sucesso!");
     } catch (error) {
       console.error("Erro:", error);
