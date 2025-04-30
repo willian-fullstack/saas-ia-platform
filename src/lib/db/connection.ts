@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sas-ia-platform';
+// Certifique-se de que a variável de ambiente MONGODB_URI está definida
+const MONGODB_URI = process.env.MONGODB_URI as string;
+
+if (!MONGODB_URI) {
+  throw new Error('A variável de ambiente MONGODB_URI não está definida no arquivo .env.local');
+}
 
 // Estrutura para cache de conexão
 interface ConnectionCache {

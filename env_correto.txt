@@ -1,0 +1,13 @@
+# Banco de Dados MongoDB
+MONGODB_URI=mongodb+srv://cwsgkfvf:<db_password>@pontopix.wljeeai.mongodb.net/?retryWrites=true&w=majority&appName=PontoPix
+
+# Autenticação
+NEXTAUTH_SECRET=sua_chave_secreta_aqui_muito_segura
+NEXTAUTH_URL=http://localhost:3001
+
+# API de IA
+DEEPSEEK_API_KEY=sk-220fd8d5c882490ea62638c826555384
+
+# Mercado Pago
+MP_ACCESS_TOKEN=TEST-127500728095624-042920-c87b79c3718faa1514a6762c326a0437-2416317570
+MP_INTEGRATOR_ID=dev_24c65fb163bf11ea96500242ac130004 
