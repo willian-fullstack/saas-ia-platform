@@ -7,11 +7,12 @@ import { getUserByEmail } from "@/lib/db/models/User";
 // Adicionando tipagem para a sessão
 import { DefaultSession } from "next-auth";
 
-// Estendendo a tipagem para incluir o ID do usuário
+// Estendendo a tipagem para incluir o ID e role do usuário
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      role?: 'user' | 'admin';
     } & DefaultSession["user"];
   }
   
@@ -19,6 +20,7 @@ declare module "next-auth" {
     id: string;
     name: string;
     email: string;
+    role?: 'user' | 'admin';
   }
 }
 
@@ -62,6 +64,7 @@ export const authOptions: NextAuthOptions = {
             id: user._id.toString(),
             name: user.name,
             email: user.email,
+            role: user.role,
           };
         } catch (error) {
           console.error("Erro na autenticação:", error);
@@ -80,13 +83,15 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        console.log('Session user ID:', session.user.id);
+        session.user.role = token.role as 'user' | 'admin';
+        console.log('Session user ID:', session.user.id, 'Role:', session.user.role);
       }
       return session;
     },

@@ -20,6 +20,7 @@ interface ChatMessage {
   isUser: boolean;
   timestamp: Date;
   isTyping?: boolean;
+  isError?: boolean;
 }
 
 export default function ConsultantPage() {
@@ -106,6 +107,10 @@ export default function ConsultantPage() {
       const data = await response.json();
       
       if (!response.ok) {
+        // Verificar se o erro é de créditos insuficientes
+        if (response.status === 402 || data.creditError) {
+          throw new Error("Créditos insuficientes. Por favor, adquira mais créditos para continuar.");
+        }
         throw new Error(data.error || "Erro ao processar solicitação");
       }
       
@@ -119,20 +124,29 @@ export default function ConsultantPage() {
           timestamp: new Date()
         }];
       });
-    } catch (error) {
-      console.error("Erro:", error);
-      toast.error("Falha ao obter resposta. Tente novamente.");
       
-      // Remover mensagem de digitando e adicionar mensagem de erro
-      setChatHistory(prev => {
-        const withoutTyping = prev.filter(msg => !msg.isTyping);
-        return [...withoutTyping, {
-          id: Date.now().toString() + "-error",
-          content: "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.",
-          isUser: false,
-          timestamp: new Date()
-        }];
-      });
+      // Atualizar o saldo de créditos se a resposta incluir essa informação
+      if (data.remainingCredits !== undefined) {
+        // Disparar evento para atualizar o saldo exibido no cabeçalho
+        const creditsEvent = new CustomEvent('credits-updated', { 
+          detail: { credits: data.remainingCredits } 
+        });
+        window.dispatchEvent(creditsEvent);
+      }
+    } catch (error) {
+      // Remover mensagem de digitando
+      setChatHistory(prev => prev.filter(msg => !msg.isTyping));
+      
+      // Adicionar mensagem de erro
+      setChatHistory(prev => [...prev, {
+        id: Date.now().toString() + "-error",
+        content: `⚠️ ${error instanceof Error ? error.message : 'Erro ao processar sua solicitação'}`,
+        isUser: false,
+        timestamp: new Date(),
+        isError: true
+      }]);
+      
+      toast.error(error instanceof Error ? error.message : 'Erro ao processar sua solicitação');
     } finally {
       setLoading(false);
     }

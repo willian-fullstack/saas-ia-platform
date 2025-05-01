@@ -4,6 +4,20 @@ import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
+// Definição de tipo estendida para incluir a propriedade role no usuário
+interface ExtendedUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: 'user' | 'admin';
+}
+
+interface ExtendedSession {
+  user?: ExtendedUser;
+  expires: string;
+}
+
 /**
  * Hook para proteger páginas que requerem autenticação
  * Redireciona para a página de login se o usuário não estiver autenticado
@@ -42,4 +56,49 @@ export function useRedirectIfAuthenticated() {
   }, [session, status, router, pathname]);
   
   return { session, isLoading: status === "loading" };
+}
+
+/**
+ * Hook para verificar se o usuário atual é um administrador
+ * Retorna um objeto com isAdmin e isLoading
+ */
+export function useIsAdmin() {
+  const { data: session, status } = useSession();
+  const typedSession = session as ExtendedSession | null;
+  const isAdmin = typedSession?.user?.role === "admin";
+  
+  return { 
+    isAdmin, 
+    isLoading: status === "loading" 
+  };
+}
+
+/**
+ * Hook para proteger páginas que requerem acesso de administrador
+ * Redireciona para o dashboard se o usuário não for admin
+ */
+export function useRequireAdmin() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const typedSession = session as ExtendedSession | null;
+  const isAdmin = typedSession?.user?.role === "admin";
+  
+  useEffect(() => {
+    if (status === "loading") return; // Ainda carregando, aguarde
+    
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+    
+    if (!isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [session, status, router, isAdmin]);
+  
+  return { 
+    session: typedSession, 
+    isAdmin, 
+    isLoading: status === "loading" 
+  };
 } 

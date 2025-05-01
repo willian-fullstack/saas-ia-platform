@@ -10,6 +10,9 @@ export interface IUser {
   bio?: string;
   company?: string;
   phone?: string;
+  credits: number; // Quantidade de créditos disponíveis
+  subscriptionId?: mongoose.Schema.Types.ObjectId; // Referência à assinatura atual
+  role: 'user' | 'admin'; // Papel do usuário
   notifications?: {
     email?: boolean;
     marketing?: boolean;
@@ -59,6 +62,19 @@ const userSchema = new mongoose.Schema<IUser>(
       type: String,
       default: '',
     },
+    credits: {
+      type: Number,
+      default: 0,
+    },
+    subscriptionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subscription',
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
     notifications: {
       type: mongoose.Schema.Types.Mixed,
       default: {
@@ -95,4 +111,63 @@ export async function isEmailInUse(email: string): Promise<boolean> {
   await connectToDB();
   const user = await User.findOne({ email }).exec();
   return !!user;
+}
+
+// Função de helper para obter usuário por ID
+export async function getUserById(id: string) {
+  await connectToDB();
+  return User.findById(id).exec();
+}
+
+// Função de helper para atualizar créditos do usuário
+export async function updateUserCredits(userId: string, credits: number) {
+  await connectToDB();
+  return User.findByIdAndUpdate(
+    userId,
+    { credits },
+    { new: true }
+  ).exec();
+}
+
+// Função de helper para adicionar créditos ao usuário
+export async function addUserCredits(userId: string, amount: number) {
+  await connectToDB();
+  return User.findByIdAndUpdate(
+    userId,
+    { $inc: { credits: amount } },
+    { new: true }
+  ).exec();
+}
+
+// Função de helper para consumir créditos do usuário
+export async function consumeUserCredits(userId: string, amount: number) {
+  await connectToDB();
+  const user = await User.findById(userId).exec();
+  
+  if (!user) {
+    throw new Error('Usuário não encontrado');
+  }
+  
+  if (user.credits < amount) {
+    throw new Error('Créditos insuficientes');
+  }
+  
+  user.credits -= amount;
+  return user.save();
+}
+
+// Função de helper para atualizar a assinatura do usuário
+export async function updateUserSubscription(userId: string, subscriptionId: string) {
+  await connectToDB();
+  return User.findByIdAndUpdate(
+    userId,
+    { subscriptionId },
+    { new: true }
+  ).exec();
+}
+
+// Função de helper para obter todos os administradores
+export async function getAdminUsers() {
+  await connectToDB();
+  return User.find({ role: 'admin' }).exec();
 } 

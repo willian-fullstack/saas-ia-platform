@@ -135,12 +135,27 @@ export default function CopywritingPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Verificar se o erro é de créditos insuficientes
+        if (response.status === 402 || errorData.creditError) {
+          throw new Error("Créditos insuficientes. Por favor, adquira mais créditos para continuar.");
+        }
+        
         throw new Error(errorData.error || 'Erro ao processar solicitação');
       }
       
       // Simular a geração de texto progressiva
       const data = await response.json();
       const textContent = data.result;
+      
+      // Atualizar o saldo de créditos se a resposta incluir essa informação
+      if (data.remainingCredits !== undefined) {
+        // Disparar evento para atualizar o saldo exibido no cabeçalho
+        const creditsEvent = new CustomEvent('credits-updated', { 
+          detail: { credits: data.remainingCredits } 
+        });
+        window.dispatchEvent(creditsEvent);
+      }
       
       // Mostrar o texto gradualmente para um melhor feedback visual
       const words = textContent.split(' ');

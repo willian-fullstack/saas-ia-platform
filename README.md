@@ -9,6 +9,8 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
 - **IA:** OpenAI GPT-4-turbo, DeepSeek Chat API
 - **Banco de Dados:** MongoDB com Mongoose
 - **Autenticação:** NextAuth.js com autenticação via Google
+- **Pagamentos:** Integração completa com Mercado Pago para assinaturas recorrentes
+- **Gestão de Créditos:** Sistema avançado de créditos e histórico detalhado de consumo
 - **Cache:** Sistema de cache em memória para otimização de requisições
 - **Monitoramento:** Sistema próprio de logging e monitoramento de performance
 - **Gerenciamento de Estado:** React Hooks e Context API
@@ -25,6 +27,7 @@ Uma plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e
   - OpenAI API Key
   - DeepSeek API Key
   - Google OAuth Client ID e Secret
+  - Mercado Pago Access Token (para processamento de pagamentos)
 
 ## Instalação
 
@@ -45,7 +48,7 @@ cp .env.example .env.local
 ```
 
 4. Configure as seguintes variáveis no arquivo `.env.local`:
-```
+```bash
 MONGODB_URI=sua_uri_do_mongodb
 NEXTAUTH_SECRET=seu_secret_para_nextauth
 NEXTAUTH_URL=http://localhost:3000
@@ -53,6 +56,12 @@ GOOGLE_CLIENT_ID=seu_client_id_do_google
 GOOGLE_CLIENT_SECRET=seu_client_secret_do_google
 OPENAI_API_KEY=sua_chave_da_openai
 DEEPSEEK_API_KEY=sua_chave_da_deepseek
+MERCADO_PAGO_ACCESS_TOKEN=seu_access_token_do_mercado_pago
+```
+
+5. Definir usuário administrador:
+```bash
+npm run setup-admin -- --email=seu_email@exemplo.com
 ```
 
 ## Módulos Implementados
@@ -62,6 +71,7 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
 - Proteção de rotas
 - Gerenciamento de sessão
 - Perfil do usuário
+- Papéis de usuário (usuário comum e administrador)
 
 ### 2. IA de Copywriting
 - Geração de textos persuasivos sem restrições
@@ -77,6 +87,8 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
   - Pontos-chave customizáveis
 - Sistema de cache para otimização de requisições
 - Salvamento e gerenciamento de criações
+- **Novo:** Consumo automático de créditos conforme uso
+- **Novo:** Validação em tempo real de créditos disponíveis
 
 ### 3. IA de Ofertas
 - Geração de ofertas persuasivas completas
@@ -92,6 +104,8 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
   - Resumo em tópicos
 - Salvamento automático das criações
 - Preview em tempo real com animação de geração
+- **Novo:** Sistema de consumo de créditos integrado
+- **Novo:** Melhorias na interface de usuário e feedback visual
 
 ### 4. Consultor IA 24h
 - Chat em tempo real com IA especializada
@@ -115,6 +129,8 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
   - Formatação automática de mensagens
   - Suporte a atalhos de teclado
   - Modo claro/escuro
+- **Novo:** Integração completa com sistema de créditos
+- **Novo:** Respostas mais precisas e personalizadas por área
 
 ### 5. Gerenciamento de Criações
 - Sistema unificado para todas as criações do usuário
@@ -127,6 +143,8 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
   - Visualização de landing pages
 - Exibição de atividades recentes no dashboard
 - Proteção contra acesso não autorizado
+- **Novo:** Interface aprimorada para visualização de histórico
+- **Novo:** Categorização inteligente de criações
 
 ### 6. Sistema de Performance
 - Monitoramento de tempo de resposta das APIs
@@ -134,6 +152,119 @@ DEEPSEEK_API_KEY=sua_chave_da_deepseek
 - Rate limiting para proteção da API
 - Logs detalhados para debugging
 - Tratamento robusto de erros
+- **Novo:** Melhorias significativas na performance de respostas
+- **Novo:** Otimizações para redução de latência em todos os módulos
+
+### 7. Sistema de Assinaturas e Créditos (Completamente Implementado)
+- **Novo:** Integração completa com Mercado Pago para processamento de pagamentos recorrentes
+- **Novo:** Interface amigável para seleção e assinatura de planos
+- **Novo:** Checkout seguro com redirecionamento para pagamento
+- **Novo:** Webhook para processamento automático de notificações de pagamento
+- **Novo:** Painel de administração para gestão completa de planos e créditos
+- **Novo:** Histórico detalhado de consumo de créditos com filtros avançados
+- **Novo:** Visualização de status da assinatura em tempo real
+- **Novo:** Sistema de notificações para estado da assinatura e saldo de créditos
+- **Novo:** Controle granular de custos de créditos por funcionalidade
+
+### 8. Área Administrativa
+- **Novo:** Painel completo de administração com acesso restrito
+- **Novo:** Gestão de planos de assinatura (criação, edição, ativação/desativação)
+- **Novo:** Configuração de preços e quantidade de créditos por plano
+- **Novo:** Definição de custos de créditos para cada funcionalidade
+- **Novo:** Visualização de métricas e estatísticas de uso
+- **Novo:** Interface intuitiva para todas as operações administrativas
+
+## Sistema de Assinaturas (Documentação Detalhada)
+
+### Planos Disponíveis
+- **Básico (Gratuito)**
+  - Créditos limitados para testes iniciais
+  - Acesso a funcionalidades básicas
+  - Sem cobranças recorrentes
+
+- **Médio (Pago)**
+  - Quantidade intermediária de créditos mensais
+  - Acesso a todas as funcionalidades
+  - Renovação automática mensal
+
+- **Avançado (Pago)**
+  - Grande quantidade de créditos mensais
+  - Acesso a todas as funcionalidades com prioridade
+  - Renovação automática mensal
+
+### Gestão de Créditos
+- Cada funcionalidade de IA consome uma quantidade específica de créditos
+- Os créditos são renovados automaticamente com a renovação da assinatura
+- Histórico completo de uso de créditos
+- Notificações de créditos baixos
+- Possibilidade de comprar créditos extras
+
+### Área Administrativa
+- Painel exclusivo para administradores
+- Gerenciamento de custos de créditos por funcionalidade
+- Visualização de estatísticas de uso
+- Ativação/desativação de funcionalidades
+- Gestão de planos de assinatura
+
+### Integração com Mercado Pago
+- **Novo:** Processamento seguro de pagamentos recorrentes
+- **Novo:** Suporte completo para assinaturas mensais
+- **Novo:** Webhooks para processamento automático de notificações
+- **Novo:** Gestão de ciclos de pagamento e renovações
+- **Novo:** Tratamento de pagamentos pendentes, aprovados e rejeitados
+- **Novo:** Cancelamento de assinaturas com confirmação automática
+- **Novo:** Redirecionamento seguro para checkout oficial do Mercado Pago
+- **Novo:** Processamento de retorno após finalização do pagamento
+- **Novo:** Funcionalidade resiliente com modo de simulação para desenvolvimento
+
+### Configuração do Mercado Pago
+
+Para habilitar a integração com o Mercado Pago, adicione a seguinte variável ao seu arquivo `.env.local`:
+
+```
+MERCADO_PAGO_ACCESS_TOKEN=seu_token_de_acesso
+```
+
+Você pode obter seu token de acesso no [Painel do Mercado Pago](https://www.mercadopago.com.br/developers/panel/credentials).
+
+O sistema foi projetado para operar em dois modos:
+1. **Modo Completo:** Com token configurado, utilizando a API real do Mercado Pago
+2. **Modo Simulado:** Sem token configurado, simulando respostas para desenvolvimento
+
+No modo simulado, você poderá testar toda a funcionalidade sem precisar de uma conta no Mercado Pago.
+
+### Implementação Atualizada do Mercado Pago
+
+A integração com o Mercado Pago foi completamente reescrita para utilizar a versão mais recente da API oficial (v2). As principais melhorias incluem:
+
+- **Uso da nova SDK:** Implementação utilizando a nova API `MercadoPagoConfig` e `Preference` para maior compatibilidade e estabilidade.
+- **Estruturação correta das preferências:** Configuração otimizada para minimizar erros de validação.
+- **Remoção do parâmetro auto_return:** Configuração simplificada para maior compatibilidade com a API.
+- **Melhor tratamento de respostas:** Sistema mais robusto para processar retornos da API.
+- **Logs detalhados:** Registro completo das preferências e respostas para facilitar o diagnóstico de problemas.
+- **Webhooks aprimorados:** Tratamento otimizado de notificações de pagamento com suporte a todos os status.
+- **Compatibilidade com testes:** Suporte para contas de teste vendedor/comprador seguindo as melhores práticas.
+
+Para testar pagamentos, lembre-se de:
+1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
+2. Usar uma aba anônima/privada ao testar pagamentos (para evitar o erro "não é possível pagar para si mesmo")
+3. Configurar chaves Pix nas contas de teste para habilitar essa opção de pagamento
+
+As configurações podem ser gerenciadas no painel do desenvolvedor do Mercado Pago em: https://www.mercadopago.com.br/developers/panel/
+
+### Uso e Configuração do Sistema de Planos
+
+#### Para Administradores:
+1. Acesse `/dashboard/admin/plans` para gerenciar os planos
+2. Crie planos com diferentes preços, créditos e recursos
+3. Ative/desative planos conforme necessário
+4. Configure os custos de créditos em `/dashboard/admin/credits`
+
+#### Para Usuários:
+1. Acesse `/dashboard/subscription` para visualizar e assinar planos
+2. Selecione um plano de acordo com suas necessidades
+3. Complete o pagamento via Mercado Pago (ou automaticamente para planos gratuitos)
+4. Acompanhe o consumo de créditos em `/dashboard/credits/history`
 
 ## Estrutura do Projeto
 
@@ -146,12 +277,20 @@ sas-ia-platform/
 │   │   │   ├── consultant/     # API do Consultor IA
 │   │   │   ├── copywriting/    # API de Copywriting
 │   │   │   ├── offers/         # API de Ofertas
+│   │   │   ├── credits/        # API de Gerenciamento de Créditos
+│   │   │   ├── admin/          # APIs Administrativas
+│   │   │   ├── subscription/   # API de Assinaturas
+│   │   │   ├── webhooks/       # Webhooks para integrações externas
 │   │   │   └── user-creations/ # Gerenciamento de criações
 │   │   ├── dashboard/          # Interface principal
 │   │   │   ├── consultant/     # Página do Consultor IA
 │   │   │   ├── copywriting/    # Página de Copywriting
 │   │   │   ├── creative/       # Página de Criativos
 │   │   │   ├── offers/         # Página de Ofertas
+│   │   │   ├── subscription/   # Página de Assinaturas
+│   │   │   ├── credits/        # Páginas de Créditos
+│   │   │   ├── admin/          # Páginas Administrativas 
+│   │   │   ├── payment/        # Páginas de Pagamento e Retorno
 │   │   │   └── tools/         # Página de Ferramentas
 │   │   ├── login/             # Página de login
 │   │   ├── profile/           # Perfil do usuário
@@ -164,6 +303,14 @@ sas-ia-platform/
 │   │   │   ├── copywriting/   # Módulo de copywriting
 │   │   │   ├── offers/        # Módulo de ofertas
 │   │   │   └── user-creations/ # Componentes de criações
+│   │   ├── dashboard/         # Componentes do dashboard
+│   │   │   ├── header.tsx     # Cabeçalho do dashboard
+│   │   │   ├── sidebar.tsx    # Barra lateral do dashboard
+│   │   │   └── mobile-menu.tsx # Menu mobile do dashboard
+│   │   ├── subscription/      # Componentes de assinatura
+│   │   │   ├── PlanCard.tsx   # Card de plano de assinatura
+│   │   │   ├── PaymentStatus.tsx # Status de pagamento
+│   │   │   └── CreditsBadge.tsx # Badge de créditos
 │   │   ├── ui/               # Componentes de UI reutilizáveis
 │   │   │   ├── button/       # Botões customizados
 │   │   │   ├── dialog/       # Modais e diálogos
@@ -176,11 +323,23 @@ sas-ia-platform/
 │   ├── lib/
 │   │   ├── db/               # Modelos e funções do banco de dados
 │   │   │   ├── models/       # Modelos do MongoDB
+│   │   │   │   ├── User.ts   # Modelo de usuário
+│   │   │   │   ├── Plan.ts   # Modelo de plano
+│   │   │   │   ├── Subscription.ts # Modelo de assinatura
+│   │   │   │   ├── CreditHistory.ts # Modelo de histórico de créditos
+│   │   │   │   └── Creation.ts # Modelo de criações de usuário
 │   │   │   └── connect.ts    # Conexão com o banco
 │   │   ├── auth.ts          # Configurações de autenticação
+│   │   ├── hooks/           # Hooks personalizados
+│   │   │   ├── useCredits.ts # Hook para gerenciamento de créditos
+│   │   │   ├── useSubscription.ts # Hook para gerenciamento de assinaturas
+│   │   │   └── useCreations.ts # Hook para gerenciamento de criações
 │   │   ├── performance.ts   # Utilitários de performance
 │   │   └── utils.ts         # Funções utilitárias gerais
 │   └── services/            # Serviços externos e integrações
+│       ├── mercadopago.ts   # Integração com Mercado Pago
+│       ├── copywriting.ts   # Serviço de IA para copywriting
+│       └── user-creations.ts # Gerenciamento de criações de usuário
 ├── public/                  # Arquivos estáticos
 ├── node_modules/           # Dependências
 ├── .env                    # Variáveis de ambiente
@@ -201,22 +360,38 @@ sas-ia-platform/
 - Interface responsiva e consistente
 - **Novo:** Animação de digitação no Consultor IA
 - **Novo:** Indicadores visuais de status em tempo real
+- **Novo:** Menu mobile otimizado para navegação rápida
+- **Novo:** Exibição de créditos em tempo real no cabeçalho
+- **Novo:** Aprimoramentos visuais em todas as páginas administrativas
 
-### Otimizações de Performance
-- Sistema de cache para requisições à API
-- Rate limiting otimizado para respostas mais rápidas
-- Paginação e filtragem eficiente de dados
-- Carregamento otimizado de componentes
-- **Novo:** Redução no tempo de resposta do Consultor IA
-- **Novo:** Cache inteligente com duração variável
+### Consumo de Créditos nas Ferramentas de IA
+- **Novo:** Implementação completa do consumo de créditos em todas as ferramentas de IA
+- **Novo:** Integração do sistema de créditos com todas as APIs da plataforma
+- **Novo:** Mensagens de erro aprimoradas para notificar sobre créditos insuficientes
+- **Novo:** Atualização em tempo real do saldo de créditos após cada uso
+- **Novo:** Sistema de eventos para sincronizar o saldo em toda a aplicação
+- **Novo:** Tratamento de erro gracioso para tentativas de uso sem créditos suficientes
+- **Novo:** Otimização do processo de validação e consumo para redução de latência
 
-### Correções e Melhorias
-- Correção do salvamento de ofertas no banco de dados
-- Ajustes na validação de dados
-- Melhorias no tratamento de erros
-- Otimização do uso de memória no cache
-- **Novo:** Remoção de restrições no Consultor IA
-- **Novo:** Melhor gerenciamento de estado nas conversas
+### Sistema de Gerenciamento de Planos e Créditos
+- **Novo:** Implementação completa do gerenciamento de planos de assinatura
+- **Novo:** Interface administrativa para controle de planos (criação, edição, ativação/desativação)
+- **Novo:** Exibição de cartões atrativos para seleção de planos pelos usuários
+- **Novo:** Configuração de recursos e características por plano
+- **Novo:** Sistema resiliente para funcionamento com ou sem integração de pagamentos
+- **Novo:** Endpoints de API para administração de planos no formato RESTful
+- **Novo:** Histórico detalhado de consumo de créditos com informações completas
+- **Novo:** Interface de gerenciamento de créditos para administradores
+
+### Integração com Mercado Pago
+- **Novo:** Implementação completa do fluxo de checkout oficial do Mercado Pago
+- **Novo:** Tratamento de erros e resiliência na integração
+- **Novo:** Suporte para assinaturas recorrentes automatizadas
+- **Novo:** Gerenciamento de estados de pagamento (pendente, aprovado, rejeitado)
+- **Novo:** Suporte para cancelamento de assinaturas
+- **Novo:** Compatibilidade com ambiente de desenvolvimento e produção
+- **Novo:** Páginas de retorno após conclusão do pagamento (sucesso, pendente, falha)
+- **Novo:** Tratamento de webhooks para atualização automática de status
 
 ## Próximos Passos
 
@@ -224,18 +399,27 @@ sas-ia-platform/
    - IA de Criativos Visuais
    - IA de Vídeos Curtos
    - Transcrição de Áudio
+   - Dashboard administrativo com métricas de uso e receita
+   - Relatórios de consumo de créditos por funcionalidade
 
 2. **Melhorias Planejadas:**
    - Implementação de testes automatizados
    - Sistema de métricas e analytics
    - Otimização de performance
    - Expansão do sistema de cache
+   - Melhorias no sistema de notificações de pagamento
+   - Interface para visualização de histórico de créditos pelo usuário
+   - Sistema de recomendação de planos com base no consumo
 
 3. **Novas Funcionalidades:**
    - Integração com mais APIs de IA
    - Sistema de templates personalizados
    - Exportação de dados
    - Dashboards analíticos
+   - Cupons de desconto para planos
+   - Sistema de afiliados
+   - Bônus de créditos por indicação
+   - Notificações por email para status de assinatura
 
 ## Contribuição
 

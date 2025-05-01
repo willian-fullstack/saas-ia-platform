@@ -89,6 +89,34 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
 
+      // Obter ID do usuário
+      const userId = session.user.id;
+      
+      // Consumir créditos para o uso do gerador de ofertas
+      const featureId = 'offers';
+      
+      // Verificar e consumir os créditos
+      const creditResponse = await fetch(`${request.headers.get('origin')}/api/credits/consume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') || ''
+        },
+        body: JSON.stringify({
+          featureId,
+          description: 'Uso da IA de Ofertas'
+        })
+      });
+      
+      const creditData = await creditResponse.json();
+      
+      if (!creditResponse.ok) {
+        return NextResponse.json({ 
+          error: creditData.message || 'Créditos insuficientes', 
+          creditError: true 
+        }, { status: 402 });
+      }
+
       // Implementação de controle de rate limiting básico
       const now = Date.now();
       const timeSinceLastRequest = (now - lastRequestTime) / 1000; // em segundos
@@ -168,7 +196,6 @@ export async function POST(request: Request) {
       const result = await callDeepSeekAPI(prompt);
 
       // Salvar a criação no banco de dados
-      const userId = session.user.id;
       const title = `Oferta: ${productName}`;
       const content = {
         niche,
@@ -186,7 +213,11 @@ export async function POST(request: Request) {
 
       const creation = await saveUserCreation(userId, title, 'offer', content);
 
-      return NextResponse.json({ result, creation });
+      return NextResponse.json({ 
+        result, 
+        creation,
+        remainingCredits: creditData.remainingCredits
+      });
 
     } catch (error) {
       console.error('Erro ao processar solicitação:', error);

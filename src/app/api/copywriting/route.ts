@@ -166,6 +166,32 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Consumir créditos para o uso do copywriting
+      const featureId = 'copywriting';
+      const userId = session.user.id;
+      
+      // Verificar e consumir os créditos
+      const creditResponse = await fetch(`${request.url.split('/api/')[0]}/api/credits/consume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') || ''
+        },
+        body: JSON.stringify({
+          featureId,
+          description: `Geração de ${result.data.copyType} sobre ${result.data.topic}`
+        })
+      });
+      
+      const creditData = await creditResponse.json();
+      
+      if (!creditResponse.ok) {
+        return NextResponse.json({ 
+          error: creditData.message || 'Créditos insuficientes', 
+          creditError: true 
+        }, { status: 402 });
+      }
+      
       // Construir o prompt
       const prompt = `
       Gere um texto de ${result.data.copyType} para o tópico/produto: ${result.data.topic}.
@@ -190,7 +216,10 @@ export async function POST(request: NextRequest) {
       // Gerar a copy
       const generatedText = await callDeepSeekAPI(prompt);
       
-      return NextResponse.json({ result: generatedText });
+      return NextResponse.json({ 
+        result: generatedText,
+        remainingCredits: creditData.remainingCredits
+      });
     }
   } catch (error) {
     console.error('Erro ao processar requisição:', error);

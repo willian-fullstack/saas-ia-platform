@@ -92,6 +92,32 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
 
+      // Consumir créditos para o uso do consultor
+      const featureId = 'consultant';
+      const userId = session.user.id;
+      
+      // Verificar e consumir os créditos
+      const creditResponse = await fetch(`${request.headers.get('origin')}/api/credits/consume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') || ''
+        },
+        body: JSON.stringify({
+          featureId,
+          description: 'Consulta ao Consultor IA 24h'
+        })
+      });
+      
+      const creditData = await creditResponse.json();
+      
+      if (!creditResponse.ok) {
+        return NextResponse.json({ 
+          error: creditData.message || 'Créditos insuficientes', 
+          creditError: true 
+        }, { status: 402 });
+      }
+
       // Rate limiting
       const now = Date.now();
       const timeSinceLastRequest = (now - lastRequestTime) / 1000;
@@ -120,7 +146,6 @@ export async function POST(request: Request) {
       const result = await callDeepSeekAPI(prompt, history || []);
 
       // Salvar interação
-      const userId = session.user.id;
       const title = `Consulta: ${message.slice(0, 50)}...`;
       const content = {
         message,
@@ -133,7 +158,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ 
         result,
         creation,
-        messageId: creation._id
+        messageId: creation._id,
+        remainingCredits: creditData.remainingCredits
       });
 
     } catch (error) {
