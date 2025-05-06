@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { withAdminAuth } from "@/lib/middleware/credit-check";
+import { getToken } from "next-auth/jwt";
+import { getUserById } from "@/lib/db/models/User";
 import { 
   updateCreditSetting,
   toggleCreditSetting,
@@ -9,21 +10,68 @@ import {
 } from "@/lib/db/models/CreditSettings";
 import { IUser } from "@/lib/db/models/User";
 
-// PATCH - Atualizar uma configuração de crédito específica
-export const PATCH = withAdminAuth(async (
-  req: NextRequest, 
-  user: IUser, 
-  context?: { params: { id: string } }
-) => {
+async function checkAdminAuth(req: NextRequest) {
   try {
-    // Verificar se temos o contexto e os parâmetros
-    if (!context || !context.params || !context.params.id) {
-      return NextResponse.json({
-        success: false,
-        message: "ID da configuração não fornecido"
-      }, { status: 400 });
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    
+    if (!token || !token.sub) {
+      return {
+        allowed: false,
+        response: NextResponse.json({
+          success: false,
+          message: "Não autorizado: Usuário não autenticado"
+        }, { status: 401 })
+      };
     }
+    
+    const userId = token.sub;
+    const user = await getUserById(userId);
+    
+    if (!user) {
+      return {
+        allowed: false,
+        response: NextResponse.json({
+          success: false,
+          message: "Não autorizado: Usuário não encontrado"
+        }, { status: 401 })
+      };
+    }
+    
+    if (user.role !== 'admin') {
+      return {
+        allowed: false,
+        response: NextResponse.json({
+          success: false,
+          message: "Não autorizado: Acesso permitido apenas para administradores"
+        }, { status: 403 })
+      };
+    }
+    
+    return { allowed: true, user };
+  } catch (error) {
+    console.error('Erro de autorização admin:', error);
+    return {
+      allowed: false,
+      response: NextResponse.json({
+        success: false,
+        message: `Erro de autenticação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+      }, { status: 500 })
+    };
+  }
+}
 
+// PATCH - Atualizar uma configuração de crédito específica
+export async function PATCH(
+  req: NextRequest, 
+  context: { params: { id: string } }
+) {
+  // Verificação de autenticação
+  const authResult = await checkAdminAuth(req);
+  if (!authResult.allowed) {
+    return authResult.response;
+  }
+
+  try {
     const id = context.params.id;
     const body = await req.json();
     
@@ -78,23 +126,20 @@ export const PATCH = withAdminAuth(async (
       message: `Erro ao atualizar configuração: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
     }, { status: 500 });
   }
-});
+}
 
 // DELETE - Excluir uma configuração de crédito
-export const DELETE = withAdminAuth(async (
-  req: NextRequest, 
-  user: IUser, 
-  context?: { params: { id: string } }
-) => {
-  try {
-    // Verificar se temos o contexto e os parâmetros
-    if (!context || !context.params || !context.params.id) {
-      return NextResponse.json({
-        success: false,
-        message: "ID da configuração não fornecido"
-      }, { status: 400 });
-    }
+export async function DELETE(
+  req: NextRequest,
+  context: { params: { id: string } }
+) {
+  // Verificação de autenticação
+  const authResult = await checkAdminAuth(req);
+  if (!authResult.allowed) {
+    return authResult.response;
+  }
 
+  try {
     const id = context.params.id;
     
     // Verificar se o ID é um ObjectId válido do MongoDB
@@ -129,4 +174,4 @@ export const DELETE = withAdminAuth(async (
       message: `Erro ao excluir configuração: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
     }, { status: 500 });
   }
-}); 
+} 

@@ -12,11 +12,11 @@ interface CreditCheckResult {
 }
 
 // Tipo para handler de admin atualizado para suportar novos formatos de rotas
-type AdminRouteHandler = (
+type AdminRouteHandler<T = any> = (
   req: NextRequest, 
   user: IUser,
-  context?: { params: { [key: string]: string } }
-) => Promise<NextResponse>;
+  context: { params: { [key: string]: string } }
+) => Promise<T>;
 
 /**
  * Middleware para verificar se o usuário tem créditos suficientes para usar uma funcionalidade
@@ -76,8 +76,8 @@ export async function checkCredits(req: NextRequest, feature: string): Promise<C
 /**
  * Middleware de rota para verificar se o usuário tem permissão de administrador
  */
-export function withAdminAuth(handler: AdminRouteHandler) {
-  return async function(req: NextRequest, context?: { params: { [key: string]: string } }): Promise<NextResponse> {
+export function withAdminAuth<T = NextResponse>(handler: AdminRouteHandler<T>) {
+  return async function(req: NextRequest, context: { params: { [key: string]: string } }): Promise<T> {
     try {
       const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
       
@@ -85,7 +85,7 @@ export function withAdminAuth(handler: AdminRouteHandler) {
         return NextResponse.json({
           success: false,
           message: "Não autorizado: Usuário não autenticado"
-        }, { status: 401 });
+        }, { status: 401 }) as unknown as T;
       }
       
       const userId = token.sub;
@@ -95,14 +95,14 @@ export function withAdminAuth(handler: AdminRouteHandler) {
         return NextResponse.json({
           success: false,
           message: "Não autorizado: Usuário não encontrado"
-        }, { status: 401 });
+        }, { status: 401 }) as unknown as T;
       }
       
       if (user.role !== 'admin') {
         return NextResponse.json({
           success: false,
           message: "Não autorizado: Acesso permitido apenas para administradores"
-        }, { status: 403 });
+        }, { status: 403 }) as unknown as T;
       }
       
       // Usuário é admin, prossegue com a execução do handler
@@ -112,7 +112,7 @@ export function withAdminAuth(handler: AdminRouteHandler) {
       return NextResponse.json({
         success: false,
         message: `Erro de autenticação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-      }, { status: 500 });
+      }, { status: 500 }) as unknown as T;
     }
   };
 } 

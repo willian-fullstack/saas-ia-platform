@@ -1,78 +1,82 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Função para inicializar o cliente OpenAI
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build-time',
+  });
+};
 
 export async function POST(request) {
   try {
     const { 
       topic, 
-      type, 
-      platform, 
-      duration, 
-      keyPoints,
-      generateCapCutFormat 
+      audience = '',
+      platform = 'YouTube',
+      duration = 'média',
+      quantity = 3
     } = await request.json();
 
     // Validar os parâmetros necessários
-    if (!topic || !platform) {
+    if (!topic) {
       return NextResponse.json(
-        { error: 'Parâmetros obrigatórios: topic, platform' },
+        { error: 'O parâmetro "topic" é obrigatório' },
         { status: 400 }
       );
     }
 
-    // Construir o prompt base
-    let prompt = `
-    Você é um roteirista profissional especializado em vídeos curtos para redes sociais.
+    // Limitar quantidade para evitar tokens excessivos
+    const safeQuantity = Math.min(Math.max(parseInt(quantity) || 3, 1), 5);
+
+    // Determinar a faixa de duração em minutos
+    let durationRange = '';
+    switch (duration.toLowerCase()) {
+      case 'curta':
+        durationRange = 'entre 3-5 minutos';
+        break;
+      case 'média':
+        durationRange = 'entre 7-12 minutos';
+        break;
+      case 'longa':
+        durationRange = 'entre 15-25 minutos';
+        break;
+      default:
+        durationRange = 'entre 7-12 minutos';
+    }
+
+    // Adicionar detalhes da audiência, se fornecidos
+    const audienceDetails = audience 
+      ? `O público-alvo para estes vídeos é: ${audience}.` 
+      : 'Considere um público geral com interesse no assunto.';
+
+    // Construir o prompt
+    const prompt = `
+    Crie ${safeQuantity} ideias detalhadas para vídeos sobre "${topic}" para o ${platform}.
     
-    Crie um roteiro detalhado para um vídeo sobre: ${topic}
-    Plataforma: ${platform}
-    Tipo de conteúdo: ${type || 'Informativo'}
-    Duração aproximada: ${duration || '30-60 segundos'}
+    ${audienceDetails}
+    Cada vídeo deve ter aproximadamente uma duração ${durationRange}.
     
-    Pontos-chave a incluir:
-    ${keyPoints ? keyPoints : 'Defina os pontos principais baseados no tópico'}
+    Para cada ideia de vídeo, forneça:
     
-    O roteiro deve ser:
-    1. Cativante desde os primeiros segundos
-    2. Direto e objetivo
-    3. Otimizado para engajamento na plataforma ${platform}
-    4. Estruturado para retenção do espectador
+    1. Título atraente: Que gere curiosidade e seja otimizado para SEO
+    2. Gancho de abertura: Como capturar a atenção nos primeiros 10-15 segundos
+    3. Estrutura do conteúdo: Tópicos principais que serão abordados (5-7 pontos)
+    4. Call-to-action: O que você quer que os espectadores façam após assistir
+    5. Descrição: Um resumo de 2-3 parágrafos para a caixa de descrição do vídeo
+    6. Tags recomendadas: 5-8 palavras-chave relevantes
+    
+    As ideias devem ser:
+    - Relevantes para o tema solicitado
+    - Otimizadas para gerar engajamento e retenção de espectadores
+    - Adaptadas às particularidades do ${platform}
+    - Factíveis de serem produzidas com recursos razoáveis
+    
+    Numere claramente cada ideia de vídeo para fácil referência.
     `;
 
-    // Adicionar instruções para formato CapCut se solicitado
-    if (generateCapCutFormat === true) {
-      prompt += `
-      
-      IMPORTANTE: Forneça o roteiro no formato de tabela para CapCut com estas colunas:
-      1. Tempo (em segundos)
-      2. Visual/Ação
-      3. Texto na tela
-      4. Áudio/Narração
-      
-      Exemplo:
-      | Tempo | Visual/Ação | Texto na tela | Áudio/Narração |
-      | 0-3s | Close no produto | NOVIDADE! | Apresentando a solução que você precisava |
-      `;
-    } else {
-      prompt += `
-      
-      Formato do roteiro:
-      1. Gancho inicial (primeiros 3 segundos)
-      2. Introdução ao tema
-      3. Desenvolvimento dos pontos principais
-      4. Call-to-action final
-      
-      Para cada seção, especifique:
-      - O que mostrar visualmente
-      - O que dizer (narração/fala)
-      - Textos que devem aparecer na tela
-      `;
-    }
+    // Inicializar o cliente OpenAI apenas quando necessário
+    const openai = getOpenAIClient();
 
     // Realizar a chamada para o OpenAI
     const completion = await openai.chat.completions.create({
@@ -80,12 +84,12 @@ export async function POST(request) {
       messages: [
         { 
           "role": "system", 
-          "content": "Você é um especialista em criação de roteiros para vídeos curtos de alto engajamento." 
+          "content": "Você é um especialista em produção de vídeos e estratégia de conteúdo para plataformas digitais." 
         },
         { "role": "user", "content": prompt }
       ],
-      temperature: 0.7,
-      max_tokens: 1500,
+      temperature: 0.8,
+      max_tokens: 2000,
     });
 
     // Extrair e retornar o resultado

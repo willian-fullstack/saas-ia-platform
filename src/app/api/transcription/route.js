@@ -1,82 +1,78 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { writeFile } from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import os from 'os';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Função para inicializar o cliente OpenAI
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build-time',
+  });
+};
 
 export async function POST(request) {
   try {
+    // Extrair o formData da requisição
     const formData = await request.formData();
-    const file = formData.get('file');
-    const language = formData.get('language') || 'pt'; // Padrão: português
-    const format = formData.get('format') || 'default'; // Padrão: default (verbatim)
+    const audioFile = formData.get('file');
+    const language = formData.get('language') || 'pt';
     
-    if (!file) {
-      return NextResponse.json(
-        { error: 'Nenhum arquivo foi enviado' },
-        { status: 400 }
-      );
+    // Validar se o arquivo foi enviado
+    if (!audioFile) {
+      return NextResponse.json({ error: 'Nenhum arquivo de áudio fornecido' }, { status: 400 });
     }
-
-    // Verificar tipo de arquivo (áudio/vídeo)
-    const validTypes = [
-      'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg',
-      'video/mp4', 'video/mpeg', 'video/webm'
-    ];
     
-    if (!validTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Formato de arquivo não suportado. Por favor, envie um arquivo de áudio ou vídeo válido.' },
-        { status: 400 }
-      );
+    // Verificar se o formato do arquivo é válido
+    const validMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/wav', 'audio/x-m4a', 'video/mp4'];
+    if (!validMimeTypes.includes(audioFile.type)) {
+      return NextResponse.json({ 
+        error: 'Formato de arquivo inválido. Formatos suportados: MP3, MP4, WAV, M4A' 
+      }, { status: 400 });
     }
-
-    // Converter o arquivo para um buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Salvar o arquivo temporariamente
-    const tempDir = path.join(process.cwd(), 'tmp');
-    const fileName = `${uuidv4()}-${file.name}`;
-    const filePath = path.join(tempDir, fileName);
     
-    await writeFile(filePath, buffer);
-
-    // Definir o formato de transcrição
-    let response_format = 'text';
-    if (format === 'srt') {
-      response_format = 'srt';
-    } else if (format === 'vtt') {
-      response_format = 'vtt';
-    } else if (format === 'verbose_json') {
-      response_format = 'verbose_json';
-    }
-
-    // Enviar para transcrição no OpenAI
-    const transcription = await openai.audio.transcriptions.create({
-      file: await openai.files.content(filePath),
+    // Criar um arquivo temporário para o upload
+    const tempDir = os.tmpdir();
+    const tempFilePath = path.join(tempDir, audioFile.name);
+    
+    // Obter os bytes do arquivo e salvá-lo
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    fs.writeFileSync(tempFilePath, buffer);
+    
+    // Inicializar o cliente OpenAI
+    const openai = getOpenAIClient();
+    
+    // Criar uma stream de leitura do arquivo
+    const fileStream = fs.createReadStream(tempFilePath);
+    
+    // Parâmetros para a transcrição
+    const transcriptionOptions = {
+      file: fileStream,
       model: 'whisper-1',
       language: language,
-      response_format: response_format,
-    });
-
-    // Retornar o resultado da transcrição
-    return NextResponse.json({ 
-      transcription: transcription.text,
-      format: response_format
-    });
-
-  } catch (error) {
-    console.error('Erro ao processar solicitação de transcrição:', error);
+      response_format: 'json',
+      temperature: 0.2
+    };
     
-    return NextResponse.json(
-      { error: 'Erro ao processar a solicitação de transcrição', details: error.message },
-      { status: 500 }
-    );
+    // Obter a transcrição
+    const transcription = await openai.audio.transcriptions.create(transcriptionOptions);
+    
+    // Limpar o arquivo temporário após o uso
+    fs.unlinkSync(tempFilePath);
+    
+    // Processar o resultado
+    return NextResponse.json({ 
+      text: transcription.text,
+      language: language
+    });
+    
+  } catch (error) {
+    console.error('Erro na transcrição:', error);
+    
+    return NextResponse.json({ 
+      error: 'Erro ao processar transcrição', 
+      details: error.message 
+    }, { status: 500 });
   }
 } 

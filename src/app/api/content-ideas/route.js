@@ -1,56 +1,64 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Função para inicializar o cliente OpenAI
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build-time',
+  });
+};
 
 export async function POST(request) {
   try {
     const { 
-      niche, 
-      platform, 
-      contentType, 
-      quantity = 5
+      topic, 
+      platform = 'Instagram',
+      contentType = 'post',
+      quantity = 5,
+      audience = '',
+      niche = ''
     } = await request.json();
 
     // Validar os parâmetros necessários
-    if (!niche || !platform) {
+    if (!topic) {
       return NextResponse.json(
-        { error: 'Parâmetros obrigatórios: niche, platform' },
+        { error: 'O parâmetro "topic" é obrigatório' },
         { status: 400 }
       );
     }
 
     // Limitar quantidade para evitar tokens excessivos
-    const safeQuantity = Math.min(Math.max(parseInt(quantity) || 5, 1), 20);
+    const safeQuantity = Math.min(Math.max(parseInt(quantity) || 5, 1), 10);
+
+    // Construir detalhes sobre audiência e nicho
+    const audienceDetails = audience ? `A audiência-alvo é: ${audience}.` : '';
+    const nicheDetails = niche ? `O nicho de mercado é: ${niche}.` : '';
 
     // Construir o prompt
     const prompt = `
-    Você é um estrategista de marketing digital especializado em criação de conteúdo.
+    Gere ${safeQuantity} ideias inovadoras e criativas de conteúdo sobre "${topic}" para publicação no ${platform} como ${contentType}.
     
-    Gere ${safeQuantity} ideias criativas de conteúdo para:
+    ${audienceDetails}
+    ${nicheDetails}
     
-    Nicho/Indústria: ${niche}
-    Plataforma: ${platform}
-    Tipo de conteúdo: ${contentType || 'variado'}
+    Para cada ideia, forneça:
+    1. Um título atraente
+    2. Uma breve descrição do conteúdo (1-2 parágrafos)
+    3. Motivo pelo qual essa ideia funcionará bem no ${platform}
+    4. De 2 a 3 hashtags relevantes
     
-    Para cada ideia, inclua:
-    1. Um título cativante
-    2. Uma breve descrição do conteúdo (3-4 linhas)
-    3. Por que essa ideia funcionaria bem para o público-alvo
-    4. Hashtags recomendadas (5-7 hashtags)
+    As ideias devem ser:
+    - Originais e diferenciadas entre si
+    - Relevantes para o tópico solicitado
+    - Otimizadas para engajamento no ${platform}
+    - Viáveis de implementar
+    - Adequadas para o tipo de conteúdo (${contentType})
     
-    Considere as características específicas da plataforma ${platform} e tendências atuais do mercado.
-    As ideias devem ser altamente engajadoras, originais e direcionadas para gerar:
-    - Mais visibilidade
-    - Aumento de seguidores
-    - Conversões/vendas
-    - Estabelecimento de autoridade no nicho
-    
-    Formate cada ideia claramente separada das outras, com numeração e subtítulos claros.
+    Enumere claramente cada ideia com números (1, 2, 3...).
     `;
+
+    // Inicializar o cliente OpenAI
+    const openai = getOpenAIClient();
 
     // Realizar a chamada para o OpenAI
     const completion = await openai.chat.completions.create({
@@ -58,19 +66,18 @@ export async function POST(request) {
       messages: [
         { 
           "role": "system", 
-          "content": "Você é um especialista em marketing digital e criação de conteúdo que entende profundamente as nuances de cada plataforma social." 
+          "content": "Você é um especialista em estratégia de conteúdo e marketing digital." 
         },
         { "role": "user", "content": prompt }
       ],
-      temperature: 0.8,
-      max_tokens: 2000,
+      temperature: 0.9,
+      max_tokens: 1500,
     });
 
     // Extrair e retornar o resultado
     const result = completion.choices[0].message.content;
 
     return NextResponse.json({ result });
-
   } catch (error) {
     console.error('Erro ao processar solicitação:', error);
     

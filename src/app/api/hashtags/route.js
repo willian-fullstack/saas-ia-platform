@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Função para inicializar o cliente OpenAI
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build-time',
+  });
+};
 
 export async function POST(request) {
   try {
     const { 
       topic, 
-      platform = 'Instagram',
-      quantity = 30
+      quantity = 15,
+      language = 'português',
+      type = 'general'
     } = await request.json();
 
     // Validar os parâmetros necessários
@@ -23,31 +26,54 @@ export async function POST(request) {
     }
 
     // Limitar quantidade para evitar tokens excessivos
-    const safeQuantity = Math.min(Math.max(parseInt(quantity) || 30, 10), 100);
+    const safeQuantity = Math.min(Math.max(parseInt(quantity) || 15, 5), 30);
+
+    // Determinar detalhes com base no tipo
+    let typeInstructions = '';
+    
+    switch (type.toLowerCase()) {
+      case 'trending':
+        typeInstructions = 'Foque em hashtags que estão em alta e são tendência atualmente.';
+        break;
+      case 'niche':
+        typeInstructions = 'Foque em hashtags específicas de nicho, menos competitivas, mas altamente relevantes.';
+        break;
+      case 'branded':
+        typeInstructions = 'Inclua algumas hashtags de marca que poderiam ser adequadas para o tema.';
+        break;
+      case 'engagement':
+        typeInstructions = 'Priorize hashtags que tendem a gerar mais engajamento e visualizações.';
+        break;
+      default:
+        typeInstructions = 'Forneça uma mistura equilibrada de hashtags populares e de nicho.';
+    }
 
     // Construir o prompt
     const prompt = `
-    Gere ${safeQuantity} hashtags relevantes e estratégicas para um conteúdo sobre "${topic}" para ser postado no ${platform}.
+    Gere um conjunto estratégico de ${safeQuantity} hashtags em ${language} relacionadas ao tópico "${topic}".
     
-    Considere:
-    - Misture hashtags populares (com alto volume de busca)
-    - Inclua hashtags de nicho (mais específicas, com menos competição)
-    - Adicione algumas hashtags de comunidade (que conectam pessoas com interesses similares)
-    - Inclua hashtags de localização quando relevante
+    ${typeInstructions}
     
-    Agrupe as hashtags nas seguintes categorias:
-    1. Hashtags populares (amplo alcance)
-    2. Hashtags de nicho (audiência específica)
-    3. Hashtags de comunidade (engajamento)
-    4. Hashtags de tendência (quando aplicável)
+    Para cada hashtag:
+    - Remova espaços
+    - Garanta que comecem com # (símbolo de hashtag)
+    - Siga o formato camelCase para hashtags com várias palavras
     
-    Para cada categoria, forneça:
+    Organize as hashtags em três categorias:
+    1. Alta Popularidade (hashtags muito buscadas, com grande alcance)
+    2. Média Popularidade (equilíbrio entre alcance e competição)
+    3. Nicho (menos competitivas, mais específicas)
+    
+    Para cada categoria, inclua:
+    - Um breve título
     - As hashtags recomendadas
-    - Uma breve explicação sobre por que estas hashtags são eficazes nesta categoria
+    - Uma explicação curta de quando usar hashtags dessa categoria
     
-    Por fim, forneça um bloco final com todas as hashtags juntas em formato copiável (sem categorização),
-    para facilitar o uso pelo usuário.
+    Ao final, crie uma seção "Conjunto Recomendado" com uma seleção balanceada das melhores hashtags das três categorias.
     `;
+
+    // Inicializar o cliente OpenAI apenas quando necessário
+    const openai = getOpenAIClient();
 
     // Realizar a chamada para o OpenAI
     const completion = await openai.chat.completions.create({
@@ -55,7 +81,7 @@ export async function POST(request) {
       messages: [
         { 
           "role": "system", 
-          "content": "Você é um especialista em marketing digital e estratégia de hashtags para redes sociais." 
+          "content": "Você é um especialista em marketing digital e estratégia de hashtags." 
         },
         { "role": "user", "content": prompt }
       ],

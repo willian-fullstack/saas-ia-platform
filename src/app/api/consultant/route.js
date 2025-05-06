@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Função para inicializar o cliente OpenAI
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build-time',
+  });
+};
 
 export async function POST(request) {
   try {
@@ -57,6 +59,9 @@ export async function POST(request) {
       ...formattedHistory,
       { role: 'user', content: message }
     ];
+
+    // Inicializar o cliente OpenAI apenas quando necessário
+    const openai = getOpenAIClient();
 
     // Realizar a chamada para o OpenAI
     const completion = await openai.chat.completions.create({
