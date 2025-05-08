@@ -69,6 +69,11 @@ export async function createSubscription(subscriptionData: SubscriptionData) {
       - Failure: ${failureUrl}
       - Pending: ${pendingUrl}`);
 
+    // Obter URL do webhook
+    const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || `${baseUrl}/api/webhooks/mercadopago`;
+    
+    console.log(`URL do webhook: ${webhookUrl}`);
+
     // Dados para a criação da preferência - SIMPLIFICADO como o checkout-pro
     const preferenceData = {
       items: [
@@ -85,7 +90,8 @@ export async function createSubscription(subscriptionData: SubscriptionData) {
         userId: subscriptionData.userId,
         planName: subscriptionData.planName,
         external_reference: externalReference
-      }
+      },
+      notification_url: webhookUrl
     };
 
     console.log('Dados da preferência:', JSON.stringify(preferenceData, null, 2));

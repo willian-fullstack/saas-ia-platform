@@ -242,13 +242,36 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
 - **Logs detalhados:** Registro completo das preferências e respostas para facilitar o diagnóstico de problemas.
 - **Webhooks aprimorados:** Tratamento otimizado de notificações de pagamento com suporte a todos os status.
 - **Compatibilidade com testes:** Suporte para contas de teste vendedor/comprador seguindo as melhores práticas.
+- **Correção do processamento de créditos:** Resolução do problema de pagamentos aprovados que permaneciam como pendentes, com a implementação de:
+  - Verificação robusta de IDs de assinatura nas notificações
+  - Verificação e processamento correto de metadados
+  - Melhor tratamento de referências externas
+  - Adição de logs extensivos para rastreamento de problemas
+  - Implementação correta de adição de créditos (em vez de substituição)
+  - Fallback para busca alternativa de assinatura por usuário
+  - URL de webhook configurável via variável de ambiente
 
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
 2. Usar uma aba anônima/privada ao testar pagamentos (para evitar o erro "não é possível pagar para si mesmo")
 3. Configurar chaves Pix nas contas de teste para habilitar essa opção de pagamento
+4. **Novo:** Configurar corretamente a URL pública do webhook nas variáveis de ambiente:
+   ```
+   NEXT_PUBLIC_BASE_URL=https://sua-url-publica.com
+   NEXT_PUBLIC_WEBHOOK_URL=https://sua-url-publica.com/api/webhooks/mercadopago
+   ```
 
 As configurações podem ser gerenciadas no painel do desenvolvedor do Mercado Pago em: https://www.mercadopago.com.br/developers/panel/
+
+#### Script de Correção de Assinaturas Pendentes
+
+Foi desenvolvido um script auxiliar para ajudar na correção manual de assinaturas que possam ter ficado pendentes durante o período de ajustes:
+
+```bash
+node scripts/fix-subscriptions.js
+```
+
+Este script permite que o administrador visualize todas as assinaturas pendentes e escolha quais devem ser ativadas manualmente, adicionando os créditos correspondentes aos usuários.
 
 ### Uso e Configuração do Sistema de Planos
 

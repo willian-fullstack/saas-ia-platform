@@ -6,6 +6,10 @@ NEXTAUTH_SECRET=sua_chave_secreta_aqui_muito_segura
 # Substitua pela URL da sua aplicação na Vercel após o deploy
 NEXTAUTH_URL=http://localhost:3000
 
+# URL Base Pública (para uso com Ngrok ou Vercel)
+NEXT_PUBLIC_BASE_URL=https://686a-2804-77c-b00c-a01-fd7f-a67b-8fdd-5247.ngrok-free.app
+NEXT_PUBLIC_WEBHOOK_URL=https://686a-2804-77c-b00c-a01-fd7f-a67b-8fdd-5247.ngrok-free.app/api/webhooks/mercadopago
+
 # API de IA
 DEEPSEEK_API_KEY=sk-220fd8d5c882490ea62638c826555384
 

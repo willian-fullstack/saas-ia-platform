@@ -120,13 +120,24 @@ export async function getUserById(id: string) {
 }
 
 // Função de helper para atualizar créditos do usuário
-export async function updateUserCredits(userId: string, credits: number) {
+export async function updateUserCredits(userId: string, credits: number, replace: boolean = false) {
   await connectToDB();
-  return User.findByIdAndUpdate(
-    userId,
-    { credits },
-    { new: true }
-  ).exec();
+  
+  if (replace) {
+    // Se replace for true, substitui o valor atual pelos créditos informados
+    return User.findByIdAndUpdate(
+      userId,
+      { credits },
+      { new: true }
+    ).exec();
+  } else {
+    // Caso contrário, adiciona os créditos ao valor atual (comportamento padrão)
+    return User.findByIdAndUpdate(
+      userId,
+      { $inc: { credits: credits } },
+      { new: true }
+    ).exec();
+  }
 }
 
 // Função de helper para adicionar créditos ao usuário

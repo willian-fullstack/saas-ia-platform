@@ -56,69 +56,95 @@ export async function POST(req: NextRequest) {
     }
     
     // Log para rastreamento
-    console.log(`Processando notificação: ${notificationId}`);
+    console.log(`Processando notificação de pagamento: ${notificationId}`);
     
     try {
-      // Obter dados direto da API do Mercado Pago (como no checkout-pro)
-      const payment = await new Payment(mercadopago).get({ id: notificationId });
+      // Obter dados direto da API do Mercado Pago
+      const paymentResponse = await new Payment(mercadopago).get({ id: notificationId });
       
-      console.log('Dados do pagamento obtidos:', JSON.stringify(payment, null, 2));
+      console.log('Dados do pagamento obtidos do Mercado Pago:', JSON.stringify(paymentResponse, null, 2));
       
-      // Em vez de external_reference, agora usamos metadata
-      const userId = payment.metadata?.userId || payment.external_reference;
-      const subscriptionId = payment.metadata?.external_reference || userId;
+      // Verificar os dados obtidos
+      const payment = paymentResponse;
       
-      if (!subscriptionId) {
-        console.error('ID da assinatura não encontrado no pagamento:', payment);
-        return NextResponse.json({}, { status: 200 });
+      // Encontrar a referência da assinatura nos metadados ou referência externa
+      let subscriptionId: string | undefined;
+      let userId: string | undefined;
+      
+      // Verificar primeiro em metadata.external_reference (preferência da v2)
+      if (payment.metadata && payment.metadata.external_reference) {
+        subscriptionId = payment.metadata.external_reference;
+        console.log(`Encontrado ID da assinatura nos metadados: ${subscriptionId}`);
       }
       
-      console.log(`Buscando assinatura com ID: ${subscriptionId}`);
+      // Se não encontrou, verificar em external_reference
+      if (!subscriptionId && payment.external_reference) {
+        subscriptionId = payment.external_reference;
+        console.log(`Encontrado ID da assinatura na external_reference: ${subscriptionId}`);
+      }
+      
+      // Verificar o userId nos metadados
+      if (payment.metadata && payment.metadata.userId) {
+        userId = payment.metadata.userId;
+        console.log(`Encontrado ID do usuário nos metadados: ${userId}`);
+      }
+      
+      // Se não tem subscriptionId e nem userId, não podemos prosseguir
+      if (!subscriptionId && !userId) {
+        console.error('Não foi possível identificar a assinatura ou usuário nos dados do pagamento:', payment);
+        return NextResponse.json({}, { status: 200 });
+      }
       
       // Buscar assinatura pelo ID
-      let subscription = await getSubscriptionByMPId(subscriptionId);
+      console.log(`Buscando assinatura pelo ID: ${subscriptionId || userId}`);
+      let subscription = subscriptionId 
+        ? await getSubscriptionByMPId(subscriptionId)
+        : undefined;
       
-      if (!subscription) {
+      // Se não encontrou pelo subscriptionId, tenta pelo userId
+      if (!subscription && userId) {
         console.log(`Assinatura não encontrada com ID ${subscriptionId}, tentando buscar pelo userId: ${userId}`);
-        if (userId) {
-          subscription = await getSubscriptionByMPId(userId);
-        }
+        subscription = await getSubscriptionByMPId(userId);
       }
       
       if (!subscription) {
-        console.error(`Assinatura não encontrada para: ${subscriptionId}`);
+        console.error(`Assinatura não encontrada para: ${subscriptionId || userId}`);
         return NextResponse.json({}, { status: 200 });
       }
       
-      console.log(`Assinatura encontrada: ${subscription._id.toString()}, status: ${subscription.status}`);
+      console.log(`Assinatura encontrada: ${subscription._id.toString()}, status atual: ${subscription.status}`);
       
-      // Processar pagamento aprovado
+      // Verificar se o pagamento já foi processado (evitar duplicação)
+      const paymentExists = subscription.paymentHistory.some(
+        ph => ph.paymentId === notificationId
+      );
+      
+      if (paymentExists) {
+        console.log(`Pagamento ${notificationId} já processado anteriormente. Ignorando.`);
+        return NextResponse.json({}, { status: 200 });
+      }
+      
+      // Processar pagamento de acordo com o status
       if (payment.status === 'approved') {
-        console.log(`Pagamento ${notificationId} aprovado!`);
+        console.log(`Pagamento ${notificationId} aprovado! Atualizando assinatura e créditos...`);
         
         // Atualizar mercadoPagoId se ainda não definido
-        if (!subscription.mercadoPagoId || subscription.mercadoPagoId === 'pending') {
-          await updateSubscriptionStatus(
-            subscription._id.toString(),
-            'active',
-            { 
-              mercadoPagoId: notificationId,
-              startDate: new Date(),
-              renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 dias
-            }
-          );
-        } else {
-          await updateSubscriptionStatus(
-            subscription._id.toString(),
-            'active',
-            { 
-              startDate: new Date(),
-              renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 dias
-            }
-          );
-        }
+        const updateData: any = {
+          mercadoPagoId: notificationId,
+          startDate: new Date(),
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 dias
+        };
         
-        // Registrar pagamento
+        // Atualizar status da assinatura para ativo
+        const updatedSubscription = await updateSubscriptionStatus(
+          subscription._id.toString(),
+          'active',
+          updateData
+        );
+        
+        console.log(`Assinatura atualizada para status 'active': ${updatedSubscription?._id.toString()}`);
+        
+        // Registrar pagamento no histórico
         await addPaymentRecord(subscription._id.toString(), {
           paymentId: notificationId,
           amount: payment.transaction_amount || 0,
@@ -126,38 +152,69 @@ export async function POST(req: NextRequest) {
           date: new Date(payment.date_created || new Date())
         });
         
-        // Buscar usuário e plano
+        console.log(`Registro de pagamento adicionado ao histórico da assinatura`);
+        
+        // Buscar usuário e plano para atualizar créditos
         const user = await getUserById(subscription.userId.toString());
         const plan = await getPlanById(subscription.planId.toString());
         
         if (user && plan) {
-          console.log(`Processando créditos para usuário: ${user._id.toString()}, plano: ${plan.name}`);
+          console.log(`Processando créditos para usuário: ${user._id.toString()}, plano: ${plan.name}, créditos a adicionar: ${plan.credits}`);
           
           // Atualizar referência da assinatura no usuário
           await updateUserSubscription(user._id.toString(), subscription._id.toString());
+          console.log(`Referência da assinatura atualizada no perfil do usuário`);
           
-          // Adicionar créditos ao usuário
-          await updateUserCredits(user._id.toString(), plan.credits);
+          // Adicionar créditos ao usuário (usar updateUserCredits com replace=false para garantir adição)
+          const updatedUser = await updateUserCredits(user._id.toString(), plan.credits, false);
+          console.log(`Créditos adicionados ao usuário. Total atual: ${updatedUser?.credits}`);
           
           // Registrar adição de créditos
           await recordCreditAddition(
             user._id.toString(), 
             plan.credits, 
-            `Créditos do plano ${plan.name}`
+            `Créditos do plano ${plan.name} - Pagamento ${notificationId}`
           );
+          
+          console.log(`Adição de créditos registrada no histórico`);
           
           // Revalidar caminhos para atualizar dados na UI
           revalidatePath('/dashboard/subscription');
           revalidatePath('/dashboard/credits');
           revalidatePath('/dashboard');
+        } else {
+          console.error(`Usuário ou plano não encontrado. UserId: ${subscription.userId}, PlanId: ${subscription.planId}`);
         }
       } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
-        // Processar pagamento recusado
+        // Processar pagamento recusado ou cancelado
+        console.log(`Pagamento ${notificationId} ${payment.status}. Atualizando status da assinatura...`);
+        
         await updateSubscriptionStatus(
           subscription._id.toString(),
           'cancelled',
           { endDate: new Date() }
         );
+        
+        // Registrar pagamento no histórico mesmo sendo rejeitado
+        await addPaymentRecord(subscription._id.toString(), {
+          paymentId: notificationId,
+          amount: payment.transaction_amount || 0,
+          status: payment.status || 'rejected',
+          date: new Date(payment.date_created || new Date())
+        });
+        
+        console.log(`Assinatura marcada como cancelada devido a pagamento ${payment.status}`);
+      } else {
+        // Para outros status como 'pending', 'in_process', etc.
+        console.log(`Pagamento ${notificationId} com status '${payment.status}'. Nenhuma ação tomada.`);
+        
+        // Registrar no histórico mesmo assim
+        await addPaymentRecord(subscription._id.toString(), {
+          paymentId: notificationId,
+          amount: payment.transaction_amount || 0,
+          status: payment.status || 'unknown',
+          date: new Date(payment.date_created || new Date())
+        });
       }
       
       console.log(`Processamento da notificação ${notificationId} concluído com sucesso.`);
@@ -166,9 +223,9 @@ export async function POST(req: NextRequest) {
     }
     
     // Sempre retornar 200 para o Mercado Pago
-    return NextResponse.json({}, { status: 200 });
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error('Erro ao processar notificação do Mercado Pago:', error);
-    return NextResponse.json({}, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
   }
-} 
+}
