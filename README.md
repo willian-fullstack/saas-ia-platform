@@ -192,6 +192,15 @@ npm run setup-admin -- --email=seu_email@exemplo.com
   - Acesso a todas as funcionalidades com prioridade
   - Renovação automática mensal
 
+### Integração com Mercado Pago
+- Integração completa com a nova SDK do Mercado Pago (v2+)
+- Checkout transparente com redirecionamento seguro
+- Processamento automático de callbacks de pagamento
+- Webhook para processamento assíncrono de notificações de pagamento
+- Suporte a diferentes status de pagamento (pendente, aprovado, rejeitado)
+- Mapeamento adequado entre pagamentos e assinaturas do usuário
+- Logs detalhados para rastreamento de transações
+
 ### Gestão de Créditos
 - Cada funcionalidade de IA consome uma quantidade específica de créditos
 - Os créditos são renovados automaticamente com a renovação da assinatura
@@ -205,17 +214,6 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - Visualização de estatísticas de uso
 - Ativação/desativação de funcionalidades
 - Gestão de planos de assinatura
-
-### Integração com Mercado Pago
-- **Novo:** Processamento seguro de pagamentos recorrentes
-- **Novo:** Suporte completo para assinaturas mensais
-- **Novo:** Webhooks para processamento automático de notificações
-- **Novo:** Gestão de ciclos de pagamento e renovações
-- **Novo:** Tratamento de pagamentos pendentes, aprovados e rejeitados
-- **Novo:** Cancelamento de assinaturas com confirmação automática
-- **Novo:** Redirecionamento seguro para checkout oficial do Mercado Pago
-- **Novo:** Processamento de retorno após finalização do pagamento
-- **Novo:** Funcionalidade resiliente com modo de simulação para desenvolvimento
 
 ### Configuração do Mercado Pago
 

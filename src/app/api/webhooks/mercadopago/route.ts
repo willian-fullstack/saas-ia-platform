@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Payment } from "mercadopago";
 import { validateMercadoPagoNotification } from "@/services/mercadopago";
 import { getSubscriptionByMPId, updateSubscriptionStatus, addPaymentRecord } from "@/lib/db/models/Subscription";
 import { getUserById, updateUserCredits, updateUserSubscription } from "@/lib/db/models/User";
 import { getPlanById } from "@/lib/db/models/Plan";
 import { recordCreditAddition } from "@/lib/db/models/CreditHistory";
+import { revalidatePath } from "next/cache";
+import { mercadopago } from "@/services/mercadopago";
 
 // Interface para atualização de assinatura
 interface SubscriptionUpdateData {
@@ -20,104 +23,116 @@ interface MercadoPagoPaymentData {
   external_reference: string;
   date_created: string;
   transaction_amount?: number;
+  metadata?: {
+    userId?: string;
+    planName?: string;
+    external_reference?: string;
+    [key: string]: any;
+  };
 }
 
 // Processar notificações de pagamento do Mercado Pago
 export async function POST(req: NextRequest) {
   try {
     // Obter dados da requisição
-    const { action, data } = await req.json();
+    const body = await req.json();
     
-    console.log('Notificação do Mercado Pago recebida:', { action, data });
+    console.log('Notificação do Mercado Pago recebida (webhook):', JSON.stringify(body, null, 2));
     
-    // Verificar se é uma notificação de pagamento
-    if (action !== 'payment.created' && action !== 'payment.updated') {
-      return NextResponse.json({
-        success: false,
-        message: "Tipo de notificação não suportado"
-      }, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
+    // Verificar o formato da notificação (compatível com diversos formatos do Mercado Pago)
+    let notificationId: string | undefined;
+    
+    if (body.data && body.data.id) {
+      // Formato padrão da API v2: { action: 'payment.created', data: { id: '123456789' } }
+      notificationId = body.data.id;
+    } else if (body.id) {
+      // Formato alternativo para APIs antigas: { id: '123456789', ... }
+      notificationId = body.id;
     }
-    
-    const notificationId = data?.id as string;
     
     if (!notificationId) {
-      return NextResponse.json({
-        success: false,
-        message: "ID da notificação não encontrado"
-      }, { status: 200 });
+      console.error('ID da notificação não encontrado na requisição:', body);
+      return NextResponse.json({}, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
     }
     
-    // Validar notificação com Mercado Pago
-    const rawData = await validateMercadoPagoNotification(notificationId);
-    const mpData: MercadoPagoPaymentData = {
-      id: rawData.id as string,
-      status: rawData.status as string,
-      external_reference: rawData.external_reference as string,
-      date_created: rawData.date_created as string,
-      transaction_amount: rawData.transaction_amount as number || 0
-    };
+    // Log para rastreamento
+    console.log(`Processando notificação: ${notificationId}`);
     
-    // Buscar assinatura no banco de dados
-    const subscription = await getSubscriptionByMPId(mpData.external_reference);
-    
-    if (!subscription) {
-      return NextResponse.json({
-        success: false,
-        message: "Assinatura não encontrada"
-      }, { status: 200 });
-    }
-    
-    // Se a assinatura já estiver ativa, não processar novamente
-    if (subscription.status === 'active' && mpData.status === 'approved') {
-      return NextResponse.json({
-        success: true,
-        message: "Assinatura já está ativa"
-      });
-    }
-    
-    // Processar status da assinatura
-    let statusToUpdate = subscription.status;
-    const updateData: SubscriptionUpdateData = {};
-    
-    if (mpData.status === 'approved') {
-      statusToUpdate = 'active';
-      updateData.startDate = new Date();
+    try {
+      // Obter dados direto da API do Mercado Pago (como no checkout-pro)
+      const payment = await new Payment(mercadopago).get({ id: notificationId });
       
-      // Para renovações, definir também a data de renovação
-      if (subscription.status === 'active') {
-        const nextMonth = new Date();
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        updateData.renewalDate = nextMonth;
+      console.log('Dados do pagamento obtidos:', JSON.stringify(payment, null, 2));
+      
+      // Em vez de external_reference, agora usamos metadata
+      const userId = payment.metadata?.userId || payment.external_reference;
+      const subscriptionId = payment.metadata?.external_reference || userId;
+      
+      if (!subscriptionId) {
+        console.error('ID da assinatura não encontrado no pagamento:', payment);
+        return NextResponse.json({}, { status: 200 });
       }
-    } else if (mpData.status === 'cancelled' || mpData.status === 'rejected') {
-      statusToUpdate = 'cancelled';
-      updateData.endDate = new Date();
-    } else if (mpData.status === 'pending' || mpData.status === 'in_process') {
-      statusToUpdate = 'pending';
-    }
-    
-    // Atualizar status da assinatura
-    await updateSubscriptionStatus(
-      subscription._id.toString(),
-      statusToUpdate as 'active' | 'cancelled' | 'pending',
-      updateData
-    );
-    
-    // Registrar pagamento
-    if (mpData.status === 'approved') {
-      await addPaymentRecord(subscription._id.toString(), {
-        paymentId: mpData.id,
-        amount: mpData.transaction_amount || 0,
-        status: mpData.status,
-        date: new Date(mpData.date_created)
-      });
       
-      // Se a assinatura está se tornando ativa, processar créditos
-      if (subscription.status !== 'active' && statusToUpdate === 'active') {
+      console.log(`Buscando assinatura com ID: ${subscriptionId}`);
+      
+      // Buscar assinatura pelo ID
+      let subscription = await getSubscriptionByMPId(subscriptionId);
+      
+      if (!subscription) {
+        console.log(`Assinatura não encontrada com ID ${subscriptionId}, tentando buscar pelo userId: ${userId}`);
+        if (userId) {
+          subscription = await getSubscriptionByMPId(userId);
+        }
+      }
+      
+      if (!subscription) {
+        console.error(`Assinatura não encontrada para: ${subscriptionId}`);
+        return NextResponse.json({}, { status: 200 });
+      }
+      
+      console.log(`Assinatura encontrada: ${subscription._id.toString()}, status: ${subscription.status}`);
+      
+      // Processar pagamento aprovado
+      if (payment.status === 'approved') {
+        console.log(`Pagamento ${notificationId} aprovado!`);
+        
+        // Atualizar mercadoPagoId se ainda não definido
+        if (!subscription.mercadoPagoId || subscription.mercadoPagoId === 'pending') {
+          await updateSubscriptionStatus(
+            subscription._id.toString(),
+            'active',
+            { 
+              mercadoPagoId: notificationId,
+              startDate: new Date(),
+              renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 dias
+            }
+          );
+        } else {
+          await updateSubscriptionStatus(
+            subscription._id.toString(),
+            'active',
+            { 
+              startDate: new Date(),
+              renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 dias
+            }
+          );
+        }
+        
+        // Registrar pagamento
+        await addPaymentRecord(subscription._id.toString(), {
+          paymentId: notificationId,
+          amount: payment.transaction_amount || 0,
+          status: payment.status || 'approved',
+          date: new Date(payment.date_created || new Date())
+        });
+        
+        // Buscar usuário e plano
         const user = await getUserById(subscription.userId.toString());
         const plan = await getPlanById(subscription.planId.toString());
         
         if (user && plan) {
+          console.log(`Processando créditos para usuário: ${user._id.toString()}, plano: ${plan.name}`);
+          
           // Atualizar referência da assinatura no usuário
           await updateUserSubscription(user._id.toString(), subscription._id.toString());
           
@@ -130,19 +145,30 @@ export async function POST(req: NextRequest) {
             plan.credits, 
             `Créditos do plano ${plan.name}`
           );
+          
+          // Revalidar caminhos para atualizar dados na UI
+          revalidatePath('/dashboard/subscription');
+          revalidatePath('/dashboard/credits');
+          revalidatePath('/dashboard');
         }
+      } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
+        // Processar pagamento recusado
+        await updateSubscriptionStatus(
+          subscription._id.toString(),
+          'cancelled',
+          { endDate: new Date() }
+        );
       }
+      
+      console.log(`Processamento da notificação ${notificationId} concluído com sucesso.`);
+    } catch (error) {
+      console.error(`Erro ao processar pagamento ${notificationId}:`, error);
     }
     
-    return NextResponse.json({
-      success: true,
-      status: statusToUpdate
-    });
+    // Sempre retornar 200 para o Mercado Pago
+    return NextResponse.json({}, { status: 200 });
   } catch (error) {
     console.error('Erro ao processar notificação do Mercado Pago:', error);
-    return NextResponse.json({
-      success: false,
-      message: `Erro ao processar notificação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-    }, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
+    return NextResponse.json({}, { status: 200 }); // Sempre retornar 200 para o Mercado Pago
   }
 } 

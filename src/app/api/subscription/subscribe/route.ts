@@ -5,7 +5,6 @@ import { getPlanById } from "@/lib/db/models/Plan";
 import { createSubscription, updateSubscriptionStatus, getUserSubscription } from "@/lib/db/models/Subscription";
 import { recordCreditAddition } from "@/lib/db/models/CreditHistory";
 import { createSubscription as createMPSubscription } from "@/services/mercadopago";
-import mongoose from "mongoose";
 
 // POST - Criar uma assinatura para o usuário autenticado
 export async function POST(req: NextRequest) {
@@ -30,73 +29,79 @@ export async function POST(req: NextRequest) {
       }, { status: 401 });
     }
     
-    // Obter dados da requisição
+    // Obter dados do corpo da requisição
     const body = await req.json();
-    const planId = body.planId;
+    const { planId } = body;
     
     if (!planId) {
       return NextResponse.json({
         success: false,
-        message: "ID do plano não informado"
+        message: "ID do plano não fornecido"
       }, { status: 400 });
     }
     
-    // Verificar se o plano existe
+    // Verificar se plano existe
     const plan = await getPlanById(planId);
     
-    if (!plan || !plan.active) {
+    if (!plan) {
       return NextResponse.json({
         success: false,
-        message: "Plano não encontrado ou inativo"
+        message: "Plano não encontrado"
       }, { status: 404 });
     }
     
-    // Verificar se o usuário já tem uma assinatura ativa
+    // Obter o host da origem (localhost ou domínio de produção)
+    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    // Verificar se o usuário já tem uma assinatura e atualizar se necessário
     const existingSubscription = await getUserSubscription(userId);
     
-    if (existingSubscription && existingSubscription.status === 'active') {
-      return NextResponse.json({
-        success: false,
-        message: "Usuário já possui uma assinatura ativa"
-      }, { status: 400 });
+    // Criar ou atualizar assinatura
+    let subscriptionId;
+    
+    if (existingSubscription) {
+      // Se já tem uma assinatura, atualizar para o novo plano
+      await updateSubscriptionStatus(
+        existingSubscription._id.toString(),
+        'pending',
+        {
+          // Atualizar para o novo plano e status
+          startDate: existingSubscription.status === 'cancelled' ? new Date() : existingSubscription.startDate,
+        }
+      );
+      subscriptionId = existingSubscription._id.toString();
+    } else {
+      // Criar nova assinatura no banco de dados
+      const newSubscription = await createSubscription({
+        userId,
+        planId,
+        status: 'pending',
+        paymentHistory: [] // Adicionando paymentHistory vazio para satisfazer a interface
+      });
+      subscriptionId = newSubscription._id.toString();
     }
     
-    // Criar assinatura no Mercado Pago (ou processar plano gratuito)
-    const mpSubscription = await createMPSubscription({
+    // Criar pagamento no Mercado Pago (formato simplificado)
+    const preferenceResult = await createMPSubscription({
       planName: plan.name,
       planPrice: plan.price,
-      userEmail: user.email,
-      description: `Assinatura do plano ${plan.name} - SaaS IA Platform`,
-      userId: userId
+      userId,
+      external_reference: subscriptionId,
+      userEmail: user.email
     });
     
-    // Criar assinatura no banco de dados
-    const subscription = await createSubscription({
-      userId: new mongoose.Types.ObjectId(userId),
-      planId: new mongoose.Types.ObjectId(planId),
-      status: mpSubscription.free ? 'active' : 'pending',
-      mercadoPagoId: mpSubscription.id,
-      startDate: mpSubscription.free ? new Date() : undefined,
-      paymentHistory: []
-    });
-    
-    // Se for plano gratuito, ativar imediatamente
-    if (mpSubscription.free) {
-      // Atualizar referência da assinatura no usuário
-      await updateUserSubscription(userId, subscription._id.toString());
-      
-      // Adicionar créditos ao usuário
-      await updateUserCredits(userId, plan.credits);
-      
-      // Registrar adição de créditos
-      await recordCreditAddition(userId, plan.credits, `Créditos iniciais do plano ${plan.name}`);
+    if (!preferenceResult || !preferenceResult.init_point) {
+      return NextResponse.json({
+        success: false,
+        message: "Erro ao criar preferência de pagamento"
+      }, { status: 500 });
     }
     
+    // Retornar URL de checkout
     return NextResponse.json({
       success: true,
-      subscription,
-      paymentUrl: mpSubscription.init_point,
-      isFree: mpSubscription.free
+      paymentUrl: preferenceResult.init_point,
+      preferenceId: preferenceResult.id
     });
   } catch (error) {
     console.error('Erro ao criar assinatura:', error);

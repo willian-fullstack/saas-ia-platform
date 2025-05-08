@@ -1,138 +1,128 @@
 // Importamos o SDK do Mercado Pago usando a nova API
-import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
-// Variável para armazenar a instância configurada do cliente
-let mpClient: MercadoPagoConfig | null = null;
+// Inicializar o Mercado Pago diretamente na importação (como no checkout-pro)
+const accessToken = 
+  process.env.MP_ACCESS_TOKEN || 
+  process.env.MERCADO_PAGO_ACCESS_TOKEN || 
+  process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-// Função para inicializar o Mercado Pago com o token de acesso
-export function initMercadoPago(): boolean {
-  // Se já configurado, não fazer nada
-  if (mpClient) {
-    return true;
-  }
-  
-  // Tentar vários nomes possíveis da variável de ambiente
-  const accessToken = 
-    process.env.MP_ACCESS_TOKEN || 
-    process.env.MERCADO_PAGO_ACCESS_TOKEN || 
-    process.env.MERCADOPAGO_ACCESS_TOKEN;
-  
-  console.log('Tentando configurar Mercado Pago...');
-  
-  if (!accessToken) {
-    console.warn('Token de acesso do Mercado Pago não configurado. Funcionamento em modo simulado.');
-    return false;
-  }
-  
-  try {
-    // Criar uma nova instância do cliente Mercado Pago
-    mpClient = new MercadoPagoConfig({
-      accessToken: accessToken
-    });
-    
-    console.log('Mercado Pago configurado com sucesso!');
-    return true;
-  } catch (error) {
-    console.error('Erro ao configurar Mercado Pago:', error);
-    return false;
-  }
-}
+// Criar instância do cliente MercadoPago
+export const mercadopago = new MercadoPagoConfig({
+  accessToken: accessToken || '',
+});
+
+// Console log para diagnóstico
+console.log('Mercado Pago inicializado com accessToken:', accessToken ? 'Token configurado' : 'Token NÃO configurado');
 
 // Interface para dados de assinatura
 interface SubscriptionData {
   planName: string;
   planPrice: number;
-  userEmail: string;
-  description?: string;
   userId: string;
+  external_reference?: string; // ID da assinatura no banco de dados
+  userEmail?: string;
+  description?: string;
+  callbackUrls?: {
+    success: string;
+    failure: string;
+    pending: string;
+  };
 }
 
-// Interface para resposta de assinatura
-interface SubscriptionResponse {
-  id: string;
-  init_point: string | null;
-  status: string;
-  free: boolean;
-}
-
-// Função para criar uma assinatura no Mercado Pago
-export async function createSubscription(subscriptionData: SubscriptionData): Promise<SubscriptionResponse> {
-  const isConfigured = initMercadoPago();
-  const { planName, planPrice, userEmail, userId } = subscriptionData;
-  
-  // Se plano for gratuito, não criar assinatura no MP
-  if (planPrice <= 0) {
-    return {
-      id: 'free-plan',
-      init_point: null,
-      status: 'authorized',
-      free: true
-    };
-  }
-  
-  // Se o MP não estiver configurado, retornar uma resposta simulada
-  if (!isConfigured || !mpClient) {
-    return {
-      id: `simulated-${Date.now()}`,
-      init_point: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard/payment/simulation?plan=${encodeURIComponent(planName)}`,
-      status: 'pending',
-      free: false
-    };
-  }
-
+/**
+ * Cria uma nova assinatura no Mercado Pago
+ * @param subscriptionData Dados para criação da assinatura
+ * @returns Resultado da criação da assinatura
+ */
+export async function createSubscription(subscriptionData: SubscriptionData) {
   try {
-    // Criar uma instância de Preference
-    const preference = new Preference(mpClient);
-    
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    
-    // Criando o objeto de configuração
-    const preferenceData = {
-      items: [{
-        id: `subscription-${planName}`,
-        title: `Assinatura ${planName} - SaaS IA Platform`,
-        quantity: 1,
-        currency_id: "BRL",
-        unit_price: planPrice,
-        category_id: "subscription"
-      }],
-      payer: {
-        email: userEmail
-      },
-      back_urls: {
-        success: `${baseUrl}/dashboard/payment/success`,
-        failure: `${baseUrl}/dashboard/payment/failure`,
-        pending: `${baseUrl}/dashboard/payment/pending`
-      },
-      notification_url: `${baseUrl}/api/webhooks/mercadopago`,
-      external_reference: userId
-    };
-    
-    // Removendo auto_return para testar se é esse o problema
-    // De acordo com a documentação, ele só funciona com URLs de retorno configuradas
-    
-    console.log('Dados da preferência:', JSON.stringify(preferenceData, null, 2));
-    
-    // Configuração da preferência de pagamento
-    const createdPreference = await preference.create({
-      body: preferenceData
-    });
-    
-    console.log('Preferência criada com sucesso:', JSON.stringify(createdPreference, null, 2));
-    
-    if (!createdPreference.id) {
-      throw new Error("Falha ao criar preferência: ID não recebido");
+    // Se plano gratuito, retornar sem chamar o Mercado Pago
+    if (subscriptionData.planPrice === 0) {
+      return {
+        id: 'free-plan',
+        init_point: null,
+        free: true
+      };
     }
+
+    // Obter o host base a partir da URL de callback ou usar o padrão
+    const baseUrl = subscriptionData.callbackUrls?.success 
+      ? subscriptionData.callbackUrls.success.split('/dashboard')[0]
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    console.log(`Criando preferência com baseUrl: ${baseUrl}`);
     
+    // Referência externa (usada para identificar a assinatura no retorno)
+    const externalReference = subscriptionData.external_reference || subscriptionData.userId;
+
+    // Criar instância da preferência
+    const preference = new Preference(mercadopago);
+    
+    // Verificar URLs de callback
+    const successUrl = subscriptionData.callbackUrls?.success || `${baseUrl}/dashboard/payment/success`;
+    const failureUrl = subscriptionData.callbackUrls?.failure || `${baseUrl}/dashboard/payment/failure`;
+    const pendingUrl = subscriptionData.callbackUrls?.pending || `${baseUrl}/dashboard/payment/pending`;
+    
+    console.log(`URLs de retorno: 
+      - Success: ${successUrl}
+      - Failure: ${failureUrl}
+      - Pending: ${pendingUrl}`);
+
+    // Dados para a criação da preferência - SIMPLIFICADO como o checkout-pro
+    const preferenceData = {
+      items: [
+        {
+          id: `plan-${subscriptionData.planName.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Assinatura do plano ${subscriptionData.planName}`,
+          description: subscriptionData.description || `Assinatura do plano ${subscriptionData.planName} - SaaS IA Platform`,
+          quantity: 1,
+          currency_id: 'BRL',
+          unit_price: subscriptionData.planPrice
+        }
+      ],
+      metadata: {
+        userId: subscriptionData.userId,
+        planName: subscriptionData.planName,
+        external_reference: externalReference
+      }
+    };
+
+    console.log('Dados da preferência:', JSON.stringify(preferenceData, null, 2));
+
+    // Criar preferência no Mercado Pago
+    const response = await preference.create({ body: preferenceData });
+    
+    console.log('Preferência criada:', JSON.stringify(response, null, 2));
+
     return {
-      id: createdPreference.id,
-      init_point: createdPreference.init_point || null,
-      status: 'pending',
+      id: response.id,
+      init_point: response.init_point,
       free: false
     };
   } catch (error) {
-    console.error('Erro ao criar pagamento no Mercado Pago:', error);
-    throw new Error(`Erro na integração com Mercado Pago: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    console.error('Erro ao criar assinatura no Mercado Pago:', error);
+    throw error;
+  }
+}
+
+/**
+ * Valida uma notificação de pagamento do Mercado Pago
+ * @param notificationId ID da notificação
+ * @returns Dados do pagamento
+ */
+export async function validateMercadoPagoNotification(notificationId: string) {
+  try {
+    // Criar instância de pagamento
+    const payment = new Payment(mercadopago);
+    
+    // Obter dados do pagamento
+    const response = await payment.get({ id: notificationId });
+    
+    return response;
+  } catch (error) {
+    console.error('Erro ao validar notificação do Mercado Pago:', error);
+    throw error;
   }
 }
 
@@ -148,11 +138,6 @@ export async function cancelSubscription(mercadoPagoId: string): Promise<CancelR
     return { status: 'cancelled' };
   }
   
-  // Se o MP não estiver configurado
-  if (!mpClient) {
-    return { status: 'cancelled' };
-  }
-
   // No momento estamos usando pagamentos únicos, não assinaturas
   // Não há uma forma direta de "cancelar" um pagamento no Mercado Pago
   // Mas podemos retornar um status de cancelado para fins de consistência
@@ -173,8 +158,8 @@ export async function getSubscriptionStatus(mercadoPagoId: string): Promise<Stat
     return { status: 'authorized' };
   }
   
-  // Se o MP não estiver configurado
-  if (!mpClient) {
+  // Se não tiver token configurado
+  if (!accessToken) {
     return { status: 'authorized' };
   }
 
@@ -190,26 +175,5 @@ export async function getSubscriptionStatus(mercadoPagoId: string): Promise<Stat
   } catch (error) {
     console.error('Erro ao verificar status do pagamento:', error);
     throw new Error(`Erro ao verificar pagamento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-  }
-}
-
-// Função para validar uma notificação do Mercado Pago
-export async function validateMercadoPagoNotification(notificationId: string): Promise<Record<string, unknown>> {
-  if (!mpClient) {
-    return { status: 'approved', simulation: true };
-  }
-
-  try {
-    // A implementação atual não suporta validar notificações diretamente
-    // Seria necessário implementar usando a nova API
-    // Por enquanto, retornamos uma resposta simulada
-    return { 
-      status: 'approved',
-      external_reference: notificationId,
-      date_created: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error('Erro ao validar notificação do Mercado Pago:', error);
-    throw new Error(`Erro ao validar notificação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 } 
