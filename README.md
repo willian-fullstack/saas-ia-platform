@@ -256,9 +256,10 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
 
 - **Registro de usuários:** Correção do problema com o campo CPF no registro de usuários, que causava erro de duplicidade mesmo quando o campo estava vazio
   - Remoção do índice único no campo CPF para evitar conflitos
-  - Implementação de validação manual de CPF na função `createUser`
+  - Remoção manual do índice `cpf_1` do banco de dados usando script especializado
+  - Configuração do campo CPF com `sparse: true` e `default: undefined`
+  - Adição de script de utilidade (scripts/remove-cpf-index.js) para remoção de índices problemáticos
   - Tratamento adequado de valores vazios e nulos
-  - Utilização de `undefined` para valores de CPF não informados
   - Mensagens de erro específicas para facilitar a identificação do problema
 
 Para testar pagamentos, lembre-se de:
