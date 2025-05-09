@@ -61,8 +61,9 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     cpf: {
       type: String,
-      default: undefined, // Campo não obrigatório
-      // Removendo as opções de índice
+      sparse: true,
+      default: undefined,
+      // Removido o campo "unique"
     },
     phone: {
       type: String,
