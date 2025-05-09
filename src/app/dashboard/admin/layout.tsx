@@ -4,7 +4,7 @@ import { useRequireAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, Users, Settings, ShieldAlert } from "lucide-react";
+import { CreditCard, Users, Settings, ShieldAlert, CreditCard as PaymentCard, FileText } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -41,6 +41,11 @@ export default function AdminLayout({
       name: "Gerenciar Planos",
       path: "/dashboard/admin/plans",
       icon: <Settings className="h-4 w-4 mr-2" />,
+    },
+    {
+      name: "Gerenciar Assinaturas",
+      path: "/dashboard/admin/subscriptions",
+      icon: <PaymentCard className="h-4 w-4 mr-2" />,
     },
     {
       name: "Usuários",
