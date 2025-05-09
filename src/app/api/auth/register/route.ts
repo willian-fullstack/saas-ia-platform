@@ -80,18 +80,25 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Erro ao registrar usuário:", error);
     
-    // Erros específicos de banco de dados
+    // Tratamento específico para erro de CPF já cadastrado
     if (error instanceof Error) {
+      if (error.message === 'Este CPF já está cadastrado.') {
+        return NextResponse.json(
+          { message: "Este CPF já está cadastrado." },
+          { status: 409 }
+        );
+      }
+      
       if (error.message.includes("duplicate key error")) {
-        // Verificar se o erro é no campo CPF ou Email
-        if (error.message.includes("cpf_1")) {
+        // Verificar se o erro é no campo email
+        if (error.message.includes("email")) {
           return NextResponse.json(
-            { message: "Este CPF já está cadastrado." },
+            { message: "Este email já está em uso." },
             { status: 409 }
           );
         } else {
           return NextResponse.json(
-            { message: "Este email já está em uso." },
+            { message: "Dados duplicados no cadastro." },
             { status: 409 }
           );
         }

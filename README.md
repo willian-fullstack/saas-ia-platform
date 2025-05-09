@@ -255,10 +255,10 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
 ### Correções Importantes
 
 - **Registro de usuários:** Correção do problema com o campo CPF no registro de usuários, que causava erro de duplicidade mesmo quando o campo estava vazio
-  - Implementação de índice esparso para o campo CPF com propriedade background
-  - Alteração do valor padrão para `undefined` em vez de string vazia
-  - Tratamento especial na função `createUser` para garantir que CPFs vazios sejam armazenados como `undefined`
-  - Validação adequada durante o registro para evitar conflitos
+  - Remoção do índice único no campo CPF para evitar conflitos
+  - Implementação de validação manual de CPF na função `createUser`
+  - Tratamento adequado de valores vazios e nulos
+  - Utilização de `undefined` para valores de CPF não informados
   - Mensagens de erro específicas para facilitar a identificação do problema
 
 Para testar pagamentos, lembre-se de:

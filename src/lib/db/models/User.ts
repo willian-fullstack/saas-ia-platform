@@ -61,8 +61,8 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     cpf: {
       type: String,
-      default: undefined, // Alterado para undefined para evitar conflitos com índice
-      sparse: true, // Permite múltiplos documentos com valor null/undefined no campo
+      default: undefined, // Campo não obrigatório
+      // Removendo as opções de índice
     },
     phone: {
       type: String,
@@ -95,10 +95,7 @@ const userSchema = new mongoose.Schema<IUser>(
   }
 );
 
-// Adicionando índice ao CPF manualmente com opção sparse
-// Isso garante que apenas documentos com valores de CPF presentes sejam indexados
-// Removendo o índice duplicado e deixando apenas este
-userSchema.index({ cpf: 1 }, { unique: true, sparse: true, background: true });
+// Removido o índice para o campo CPF
 
 // Verifica se o modelo já existe para evitar redefinição
 const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
@@ -115,9 +112,15 @@ export async function getUserByEmail(email: string) {
 export async function createUser(userData: Omit<IUser, 'createdAt' | 'updatedAt'>) {
   await connectToDB();
   
-  // Se o CPF estiver vazio, definir como undefined para evitar problemas com o índice
+  // Se o CPF estiver vazio, definir como undefined
   if (!userData.cpf || userData.cpf.trim() === '') {
     userData.cpf = undefined;
+  } else {
+    // Verificar se já existe usuário com este CPF (validação manual)
+    const existingUserWithCpf = await User.findOne({ cpf: userData.cpf }).exec();
+    if (existingUserWithCpf) {
+      throw new Error('Este CPF já está cadastrado.');
+    }
   }
   
   return User.create(userData);
