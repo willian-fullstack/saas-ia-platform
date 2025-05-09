@@ -94,6 +94,47 @@ export default function SubscriptionPage() {
     }
   }, [session]);
 
+  // Efeito para verificar se é necessário atualizar a interface após interação com plano gratuito
+  useEffect(() => {
+    // Se a assinatura estiver com status pendente mas for um plano gratuito (básico)
+    // podemos forçar uma atualização para garantir que a interface reflita o estado correto
+    if (subscription && 
+        subscription.status === 'pending' && 
+        subscription.planId.name.toLowerCase().includes('básico')) {
+      
+      // Primeiro tentar corrigir o plano gratuito com o endpoint fixfree
+      const fixFreePlan = async () => {
+        try {
+          const response = await fetch("/api/subscription/fixfree", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log("Plano gratuito corrigido automaticamente");
+            // Atualizar os dados imediatamente
+            fetchData(true);
+          } else {
+            console.log("Falha ao corrigir plano gratuito:", data.message);
+            // Fazer uma atualização após um breve atraso
+            setTimeout(() => fetchData(true), 2000);
+          }
+        } catch (error) {
+          console.error("Erro ao tentar corrigir plano gratuito:", error);
+          // Fazer uma atualização após um breve atraso
+          setTimeout(() => fetchData(true), 2000);
+        }
+      };
+      
+      // Executar a correção
+      fixFreePlan();
+    }
+  }, [subscription]);
+
   // Função para forçar atualização dos dados
   const handleRefresh = () => {
     fetchData(true);

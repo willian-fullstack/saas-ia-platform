@@ -85,9 +85,13 @@ export async function POST(req: NextRequest) {
     // Verificar se é um plano gratuito (preço = 0)
     if (plan.price === 0) {
       // Para planos gratuitos, ativar imediatamente sem chamar Mercado Pago
+      const startDate = new Date();
+      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias a partir de agora
+      
+      // Atualizar status da assinatura
       await updateSubscriptionStatus(subscriptionId, 'active', {
-        startDate: new Date(),
-        renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias a partir de agora
+        startDate,
+        renewalDate,
         mercadoPagoId: 'free-plan'
       });
       
@@ -103,6 +107,18 @@ export async function POST(req: NextRequest) {
       
       // Atualizar referência da assinatura no usuário
       await updateUserSubscription(userId, subscriptionId);
+      
+      // Forçar revalidação da página para atualizar a interface imediatamente
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        const secret = process.env.REVALIDATION_SECRET || '';
+        
+        await fetch(`${baseUrl}/api/revalidate?path=/dashboard/subscription&secret=${secret}`, { method: 'POST' });
+        await fetch(`${baseUrl}/api/revalidate?path=/dashboard/credits&secret=${secret}`, { method: 'POST' });
+        await fetch(`${baseUrl}/api/revalidate?path=/dashboard&secret=${secret}`, { method: 'POST' });
+      } catch (error) {
+        console.error('Erro ao revalidar cache:', error);
+      }
       
       // Retornar sucesso sem URL de pagamento
       return NextResponse.json({

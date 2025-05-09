@@ -264,9 +264,10 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
 
 - **Plano gratuito/teste:** Correção do problema na assinatura do plano gratuito
   - Implementação do fluxo correto para ativação imediata do plano gratuito sem precisar chamar o Mercado Pago
-  - Adição de créditos automaticamente para o usuário após a ativação do plano
-  - Tratamento adequado do status da assinatura e datas de renovação
-  - Feedback claro para o usuário quando um plano gratuito é ativado
+  - Adição de revalidação automática de cache para garantir que a interface seja atualizada imediatamente
+  - Criação de endpoint específico (`/api/subscription/fixfree`) para corrigir planos gratuitos pendentes
+  - Detecção automática e correção de planos básicos com status "pendente"
+  - Correção do cálculo de créditos para evitar duplicação ao ativar planos gratuitos
 
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
