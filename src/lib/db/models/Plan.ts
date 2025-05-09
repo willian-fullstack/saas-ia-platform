@@ -19,7 +19,6 @@ const PlanSchema = new Schema<IPlan>({
   name: { 
     type: String, 
     required: [true, 'Nome do plano é obrigatório'],
-    enum: ['Básico', 'Médio', 'Avançado'], 
   },
   description: { 
     type: String,

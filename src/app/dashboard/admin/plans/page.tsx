@@ -364,12 +364,15 @@ export default function AdminPlansPage() {
               type="text"
               id="name"
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder="Ex: Plano Básico"
+              placeholder="Ex: Básico, Médio, Avançado ou personalizado"
               value={newPlan.name}
               onChange={(e) =>
                 setNewPlan({ ...newPlan, name: e.target.value })
               }
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Sugestões: Básico, Médio, Avançado - ou crie um nome personalizado
+            </p>
           </div>
           <div>
             <label htmlFor="description" className="block text-sm font-medium mb-1">

@@ -269,11 +269,23 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
   - Mensagens de erro específicas para facilitar a identificação do problema
 
 - **Plano gratuito/teste:** Correção do problema na assinatura do plano gratuito
-  - Implementação do fluxo correto para ativação imediata do plano gratuito sem precisar chamar o Mercado Pago
-  - Adição de revalidação automática de cache para garantir que a interface seja atualizada imediatamente
-  - Criação de endpoint específico (`/api/subscription/fixfree`) para corrigir planos gratuitos pendentes
-  - Detecção automática e correção de planos básicos com status "pendente"
-  - Correção do cálculo de créditos para evitar duplicação ao ativar planos gratuitos
+  - Implementação do fluxo correto para ativação imediata do plano gratuito/teste
+  - Atualização automática do status da assinatura e adicão de créditos
+  - Remoção da necessidade de confirmação manual para assinaturas gratuitas
+
+- **Planos personalizados:** Implementação de suporte a planos com nomes personalizados
+  - Remoção da restrição de enum no modelo Plan que limitava os nomes a apenas "Básico", "Médio" e "Avançado"
+  - Atualização da interface de administração para sugerir os nomes padrão mas permitir personalização
+  - Feedback visual aprimorado no formulário de criação de planos
+
+- **Webhooks do Mercado Pago:** Correção do processamento de notificações de pagamento
+  - Implementação de melhor extração de referências dos metadados do pagamento
+  - Logs detalhados para rastreamento do fluxo de processamento
+  - Correção do problema de assinaturas que permaneciam com status "pending" mesmo após pagamento aprovado
+  - Tratamento de vários formatos de notificação (compatibilidade com diversas versões da API)
+  - Criação de endpoint administrativo para correção manual de assinaturas pendentes
+  - Interface administrativa para visualização e gerenciamento de todas as assinaturas
+  - Validação da conexão com o ngrok para garantir o recebimento correto das notificações
 
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
