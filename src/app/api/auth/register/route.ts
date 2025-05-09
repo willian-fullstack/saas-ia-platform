@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { createUser, isEmailInUse } from "@/lib/db/models/User";
+import { createUser, isEmailInUse, isCpfInUse } from "@/lib/db/models/User";
 
 // Este exemplo usa um banco de dados em memória
 // Em uma aplicação real, você usaria um banco de dados como MongoDB, PostgreSQL, etc.
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, cpf } = await request.json();
 
     // Validações básicas
     if (!name || !email || !password) {
@@ -43,6 +43,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verificar se o CPF já está em uso (se foi fornecido)
+    if (cpf && cpf.trim() !== '') {
+      const cpfExists = await isCpfInUse(cpf);
+      if (cpfExists) {
+        return NextResponse.json(
+          { message: "Este CPF já está cadastrado." },
+          { status: 409 }
+        );
+      }
+    }
+
     // Gerar hash da senha
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -52,6 +63,9 @@ export async function POST(request: Request) {
       name,
       email,
       password: hashedPassword,
+      cpf: cpf && cpf.trim() !== '' ? cpf : undefined, // Se não for fornecido, usa undefined
+      credits: 0, // Adicionando o campo credits obrigatório
+      role: 'user', // Adicionando o campo role obrigatório
     });
 
     // Retornar sucesso, sem a senha
@@ -69,10 +83,18 @@ export async function POST(request: Request) {
     // Erros específicos de banco de dados
     if (error instanceof Error) {
       if (error.message.includes("duplicate key error")) {
-        return NextResponse.json(
-          { message: "Este email já está em uso." },
-          { status: 409 }
-        );
+        // Verificar se o erro é no campo CPF ou Email
+        if (error.message.includes("cpf_1")) {
+          return NextResponse.json(
+            { message: "Este CPF já está cadastrado." },
+            { status: 409 }
+          );
+        } else {
+          return NextResponse.json(
+            { message: "Este email já está em uso." },
+            { status: 409 }
+          );
+        }
       }
       
       if (error.message.includes("validation failed")) {

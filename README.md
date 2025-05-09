@@ -252,6 +252,15 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
   - Revalidação de cache para atualização instantânea da interface após pagamentos
   - Endpoint seguro para revalidação com proteção por token secreto
 
+### Correções Importantes
+
+- **Registro de usuários:** Correção do problema com o campo CPF no registro de usuários, que causava erro de duplicidade mesmo quando o campo estava vazio
+  - Implementação de índice esparso para o campo CPF com propriedade background
+  - Alteração do valor padrão para `undefined` em vez de string vazia
+  - Tratamento especial na função `createUser` para garantir que CPFs vazios sejam armazenados como `undefined`
+  - Validação adequada durante o registro para evitar conflitos
+  - Mensagens de erro específicas para facilitar a identificação do problema
+
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
 2. Usar uma aba anônima/privada ao testar pagamentos (para evitar o erro "não é possível pagar para si mesmo")

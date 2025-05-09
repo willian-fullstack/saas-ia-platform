@@ -9,6 +9,7 @@ export interface IUser {
   image?: string;
   bio?: string;
   company?: string;
+  cpf?: string; // Adicionado o campo CPF explicitamente
   phone?: string;
   credits: number; // Quantidade de créditos disponíveis
   subscriptionId?: mongoose.Schema.Types.ObjectId; // Referência à assinatura atual
@@ -58,6 +59,11 @@ const userSchema = new mongoose.Schema<IUser>(
       type: String,
       default: '',
     },
+    cpf: {
+      type: String,
+      default: undefined, // Alterado para undefined para evitar conflitos com índice
+      sparse: true, // Permite múltiplos documentos com valor null/undefined no campo
+    },
     phone: {
       type: String,
       default: '',
@@ -89,6 +95,11 @@ const userSchema = new mongoose.Schema<IUser>(
   }
 );
 
+// Adicionando índice ao CPF manualmente com opção sparse
+// Isso garante que apenas documentos com valores de CPF presentes sejam indexados
+// Removendo o índice duplicado e deixando apenas este
+userSchema.index({ cpf: 1 }, { unique: true, sparse: true, background: true });
+
 // Verifica se o modelo já existe para evitar redefinição
 const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
 
@@ -103,6 +114,12 @@ export async function getUserByEmail(email: string) {
 // Função de helper para criar um novo usuário
 export async function createUser(userData: Omit<IUser, 'createdAt' | 'updatedAt'>) {
   await connectToDB();
+  
+  // Se o CPF estiver vazio, definir como undefined para evitar problemas com o índice
+  if (!userData.cpf || userData.cpf.trim() === '') {
+    userData.cpf = undefined;
+  }
+  
   return User.create(userData);
 }
 
@@ -110,6 +127,14 @@ export async function createUser(userData: Omit<IUser, 'createdAt' | 'updatedAt'
 export async function isEmailInUse(email: string): Promise<boolean> {
   await connectToDB();
   const user = await User.findOne({ email }).exec();
+  return !!user;
+}
+
+// Função de helper para verificar se um CPF está em uso
+export async function isCpfInUse(cpf: string): Promise<boolean> {
+  await connectToDB();
+  if (!cpf || cpf.trim() === '') return false; // Se CPF vazio ou não informado, retorna false
+  const user = await User.findOne({ cpf }).exec();
   return !!user;
 }
 
