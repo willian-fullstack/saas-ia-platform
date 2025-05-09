@@ -82,6 +82,36 @@ export async function POST(req: NextRequest) {
       subscriptionId = newSubscription._id.toString();
     }
     
+    // Verificar se é um plano gratuito (preço = 0)
+    if (plan.price === 0) {
+      // Para planos gratuitos, ativar imediatamente sem chamar Mercado Pago
+      await updateSubscriptionStatus(subscriptionId, 'active', {
+        startDate: new Date(),
+        renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias a partir de agora
+        mercadoPagoId: 'free-plan'
+      });
+      
+      // Adicionar créditos ao usuário
+      await updateUserCredits(userId, plan.credits, false);
+      
+      // Registrar adição de créditos
+      await recordCreditAddition(
+        userId, 
+        plan.credits, 
+        `Ativação do plano gratuito: ${plan.name}`
+      );
+      
+      // Atualizar referência da assinatura no usuário
+      await updateUserSubscription(userId, subscriptionId);
+      
+      // Retornar sucesso sem URL de pagamento
+      return NextResponse.json({
+        success: true,
+        isFree: true,
+        message: "Plano gratuito ativado com sucesso"
+      });
+    }
+    
     // Criar pagamento no Mercado Pago (formato simplificado)
     const preferenceResult = await createMPSubscription({
       planName: plan.name,

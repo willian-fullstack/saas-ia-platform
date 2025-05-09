@@ -262,6 +262,12 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
   - Tratamento adequado de valores vazios e nulos
   - Mensagens de erro específicas para facilitar a identificação do problema
 
+- **Plano gratuito/teste:** Correção do problema na assinatura do plano gratuito
+  - Implementação do fluxo correto para ativação imediata do plano gratuito sem precisar chamar o Mercado Pago
+  - Adição de créditos automaticamente para o usuário após a ativação do plano
+  - Tratamento adequado do status da assinatura e datas de renovação
+  - Feedback claro para o usuário quando um plano gratuito é ativado
+
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago
 2. Usar uma aba anônima/privada ao testar pagamentos (para evitar o erro "não é possível pagar para si mesmo")
