@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getUserById, updateUserCredits, updateUserSubscription } from "@/lib/db/models/User";
-import { getPlanById } from "@/lib/db/models/Plan";
+import { getActivePlans } from "@/lib/db/models/Plan";
 import { updateSubscriptionStatus, getUserSubscription } from "@/lib/db/models/Subscription";
 import { recordCreditAddition } from "@/lib/db/models/CreditHistory";
 import { revalidatePath } from "next/cache";
@@ -50,18 +50,21 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     
-    // Carregar detalhes do plano
-    const plan = await getPlanById(subscription.planId.toString());
+    // Buscar todos os planos ativos
+    const plans = await getActivePlans();
     
-    if (!plan) {
+    // Encontrar o plano básico (gratuito)
+    const planBasico = plans.find(p => p.name === 'Básico' && p.price === 0);
+    
+    if (!planBasico) {
       return NextResponse.json({
         success: false,
-        message: "Plano não encontrado"
+        message: "Plano básico (gratuito) não encontrado"
       }, { status: 404 });
     }
     
-    // Verificar se é um plano gratuito
-    if (plan.price !== 0) {
+    // Verificar se é realmente um plano gratuito
+    if (planBasico.price !== 0) {
       return NextResponse.json({
         success: false,
         message: "Este endpoint só pode ser usado para ativar planos gratuitos"
@@ -83,15 +86,15 @@ export async function POST(req: NextRequest) {
     );
     
     // Adicionar créditos se necessário
-    if (user.credits < plan.credits) {
-      const creditsToAdd = plan.credits - user.credits;
+    if (user.credits < planBasico.credits) {
+      const creditsToAdd = planBasico.credits - user.credits;
       await updateUserCredits(userId, creditsToAdd, false);
       
       // Registrar adição de créditos
       await recordCreditAddition(
         userId,
         creditsToAdd,
-        `Correção de plano gratuito: ${plan.name}`
+        `Correção de plano gratuito: ${planBasico.name}`
       );
     }
     
