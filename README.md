@@ -251,6 +251,12 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
   - Implementação correta de adição de créditos (em vez de substituição)
   - Revalidação de cache para atualização instantânea da interface após pagamentos
   - Endpoint seguro para revalidação com proteção por token secreto
+- **Correção de ativação de planos gratuitos:** Resolução do problema de planos gratuitos que permaneciam pendentes:
+  - Implementação de endpoint específico (/api/subscription/fixfree) para corrigir planos gratuitos pendentes
+  - Busca direta do plano básico (gratuito) pelo nome em vez de depender do planId armazenado
+  - Ativação imediata de assinaturas para planos gratuitos
+  - Atribuição automática de créditos do plano básico
+  - Tratamento robusto para extrair corretamente o ID do plano independente do formato armazenado
 
 ### Correções Importantes
 
