@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
             await updateUserSubscription(user._id.toString(), subscription._id.toString());
             
             // Adicionar créditos ao usuário
-            await updateUserCredits(user._id.toString(), plan.credits);
+            await updateUserCredits(user._id.toString(), plan.credits, false);
             
             // Registrar adição de créditos
             await recordCreditAddition(

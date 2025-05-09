@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { PlanCard } from "@/components/subscription/PlanCard";
 import { CreditBadge } from "@/components/subscription/CreditBadge";
 import { useCredits } from "@/lib/hooks/useCredits";
 import { IPlan } from "@/lib/db/models/Plan";
+
+// Interface estendida para IPlan com ID sendo uma string
+interface IPlanWithId extends IPlan {
+  _id: string;
+}
 
 // Interface para tipagem da assinatura
 interface Subscription {
@@ -15,55 +20,84 @@ interface Subscription {
   startDate?: string;
   renewalDate?: string;
   planId: {
+    _id: string;
     name: string;
+    credits: number;
   };
 }
 
 export default function SubscriptionPage() {
   const { data: session } = useSession();
-  const { credits, loading: loadingCredits } = useCredits({ autoRefresh: true });
-  const [plans, setPlans] = useState<IPlan[]>([]);
+  const { credits, loading: loadingCredits, fetchCredits } = useCredits({ autoRefresh: true });
+  const [plans, setPlans] = useState<IPlanWithId[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
+  // Função para buscar dados
+  const fetchData = async (showRefreshingIndicator = false) => {
+    if (showRefreshingIndicator) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      try {
-        // Buscar planos disponíveis
-        const plansResponse = await fetch("/api/subscription/plans");
-        const plansData = await plansResponse.json();
-
-        if (!plansData.success) {
-          throw new Error(plansData.message || "Erro ao buscar planos");
-        }
-
-        setPlans(plansData.plans);
-
-        // Buscar assinatura atual
-        const subscriptionResponse = await fetch("/api/subscription/subscribe");
-        const subscriptionData = await subscriptionResponse.json();
-
-        if (subscriptionData.success && subscriptionData.hasSubscription) {
-          setSubscription(subscriptionData.subscription);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar planos de assinatura"
-        );
-      } finally {
-        setLoading(false);
-      }
     }
+    
+    try {
+      // Buscar planos disponíveis
+      const plansResponse = await fetch("/api/subscription/plans");
+      const plansData = await plansResponse.json();
 
+      if (!plansData.success) {
+        throw new Error(plansData.message || "Erro ao buscar planos");
+      }
+
+      setPlans(plansData.plans as IPlanWithId[]);
+
+      // Buscar assinatura atual
+      const subscriptionResponse = await fetch("/api/subscription/subscribe", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      const subscriptionData = await subscriptionResponse.json();
+
+      if (subscriptionData.success && subscriptionData.hasSubscription) {
+        setSubscription(subscriptionData.subscription);
+      } else {
+        setSubscription(null);
+      }
+      
+      // Atualizar créditos
+      await fetchCredits();
+      
+      // Limpar erros
+      setError("");
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao carregar planos de assinatura"
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Efeito para carregar dados iniciais
+  useEffect(() => {
     if (session) {
       fetchData();
     }
   }, [session]);
+
+  // Função para forçar atualização dos dados
+  const handleRefresh = () => {
+    fetchData(true);
+  };
 
   const handleSubscribe = async (planId: string) => {
     try {
@@ -83,8 +117,8 @@ export default function SubscriptionPage() {
       }
 
       if (data.isFree) {
-        // Recarregar a página para atualizar os créditos
-        window.location.reload();
+        // Recarregar os dados em vez de recarregar a página
+        await fetchData();
       } else if (data.paymentUrl) {
         // Redirecionar para o Mercado Pago
         window.location.href = data.paymentUrl;
@@ -140,7 +174,7 @@ export default function SubscriptionPage() {
     );
   }
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-200px)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -150,7 +184,17 @@ export default function SubscriptionPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Planos de Assinatura</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Planos de Assinatura</h1>
+        <button 
+          onClick={handleRefresh} 
+          className="flex items-center gap-2 px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-md text-sm transition-colors"
+          disabled={refreshing}
+        >
+          <RefreshCw size={16} className={`${refreshing ? 'animate-spin' : ''}`} />
+          Atualizar
+        </button>
+      </div>
       
       <div className="mb-6">
         <CreditBadge variant="default" className="text-lg" />
@@ -169,12 +213,16 @@ export default function SubscriptionPage() {
             <div>
               <p className="mb-1">
                 <span className="font-medium">Plano:</span>{" "}
-                {subscription.planId.name}
+                <span className="font-semibold text-primary">{subscription.planId.name}</span>
+              </p>
+              <p className="mb-1">
+                <span className="font-medium">Créditos incluídos:</span>{" "}
+                <span className="font-semibold">{subscription.planId.credits?.toLocaleString('pt-BR') || 0}</span>
               </p>
               <p className="mb-1">
                 <span className="font-medium">Status:</span>{" "}
                 <span
-                  className={`${
+                  className={`font-semibold ${
                     subscription.status === "active"
                       ? "text-green-600"
                       : subscription.status === "pending"
@@ -208,18 +256,20 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
-          {subscription.status === "active" && (
-            <button
-              onClick={handleCancelSubscription}
-              className="mt-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-              ) : null}
-              Cancelar Assinatura
-            </button>
-          )}
+          <div className="flex gap-2 mt-4">
+            {subscription.status === "active" && (
+              <button
+                onClick={handleCancelSubscription}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                ) : null}
+                Cancelar Assinatura
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -231,7 +281,7 @@ export default function SubscriptionPage() {
             plan={plan}
             isCurrentPlan={subscription?.planId?._id === plan._id}
             onSelectPlan={() => handleSubscribe(plan._id)}
-            loading={loading}
+            loading={loading || refreshing}
           />
         ))}
       </div>

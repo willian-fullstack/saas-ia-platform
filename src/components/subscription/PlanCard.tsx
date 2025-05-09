@@ -3,10 +3,15 @@ import { IPlan } from '@/lib/db/models/Plan';
 import { Check, X, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Interface estendida para IPlan com ID sendo uma string
+interface IPlanWithId extends IPlan {
+  _id: string;
+}
+
 interface PlanCardProps {
-  plan: IPlan;
+  plan: IPlanWithId;
   isCurrentPlan?: boolean;
-  onSelectPlan?: (plan: IPlan) => void;
+  onSelectPlan?: (plan: IPlanWithId) => void;
   loading?: boolean;
 }
 

@@ -182,6 +182,16 @@ export async function POST(req: NextRequest) {
           revalidatePath('/dashboard/subscription');
           revalidatePath('/dashboard/credits');
           revalidatePath('/dashboard');
+          
+          // Força atualização do cache em todos os caminhos relacionados
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/revalidate?path=/dashboard/subscription&secret=${process.env.REVALIDATION_SECRET}`, { method: 'POST' });
+            await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/revalidate?path=/dashboard/credits&secret=${process.env.REVALIDATION_SECRET}`, { method: 'POST' });
+            await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/revalidate?path=/dashboard&secret=${process.env.REVALIDATION_SECRET}`, { method: 'POST' });
+            console.log('Cache revalidado com sucesso');
+          } catch (revalidateError) {
+            console.error('Erro ao revalidar cache:', revalidateError);
+          }
         } else {
           console.error(`Usuário ou plano não encontrado. UserId: ${subscription.userId}, PlanId: ${subscription.planId}`);
         }

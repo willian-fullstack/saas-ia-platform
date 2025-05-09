@@ -134,7 +134,14 @@ export const updateSubscriptionStatus = async (
  */
 export const getUserSubscription = async (userId: string) => {
   const SubscriptionModel = await getSubscriptionModel();
-  return await SubscriptionModel.findOne({ userId }).sort({ createdAt: -1 });
+  return await SubscriptionModel.findOne({ userId })
+    .populate({
+      path: 'planId',
+      model: 'Plan',
+      select: '_id name price credits features description'
+    })
+    .sort({ createdAt: -1 })
+    .exec();
 };
 
 /**

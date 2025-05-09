@@ -140,16 +140,6 @@ export async function updateUserCredits(userId: string, credits: number, replace
   }
 }
 
-// Função de helper para adicionar créditos ao usuário
-export async function addUserCredits(userId: string, amount: number) {
-  await connectToDB();
-  return User.findByIdAndUpdate(
-    userId,
-    { $inc: { credits: amount } },
-    { new: true }
-  ).exec();
-}
-
 // Função de helper para consumir créditos do usuário
 export async function consumeUserCredits(userId: string, amount: number) {
   await connectToDB();

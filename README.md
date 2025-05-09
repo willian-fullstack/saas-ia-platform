@@ -242,14 +242,15 @@ A integração com o Mercado Pago foi completamente reescrita para utilizar a ve
 - **Logs detalhados:** Registro completo das preferências e respostas para facilitar o diagnóstico de problemas.
 - **Webhooks aprimorados:** Tratamento otimizado de notificações de pagamento com suporte a todos os status.
 - **Compatibilidade com testes:** Suporte para contas de teste vendedor/comprador seguindo as melhores práticas.
+- **Atualização robusta de assinaturas:** Melhorias feitas para garantir que ao mudar de plano o ID do plano seja atualizado corretamente.
 - **Correção do processamento de créditos:** Resolução do problema de pagamentos aprovados que permaneciam como pendentes, com a implementação de:
   - Verificação robusta de IDs de assinatura nas notificações
   - Verificação e processamento correto de metadados
   - Melhor tratamento de referências externas
   - Adição de logs extensivos para rastreamento de problemas
   - Implementação correta de adição de créditos (em vez de substituição)
-  - Fallback para busca alternativa de assinatura por usuário
-  - URL de webhook configurável via variável de ambiente
+  - Revalidação de cache para atualização instantânea da interface após pagamentos
+  - Endpoint seguro para revalidação com proteção por token secreto
 
 Para testar pagamentos, lembre-se de:
 1. Criar contas de teste separadas para vendedor e comprador no painel do Mercado Pago

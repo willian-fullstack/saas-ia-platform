@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         'pending',
         {
           // Atualizar para o novo plano e status
+          planId,
           startDate: existingSubscription.status === 'cancelled' ? new Date() : existingSubscription.startDate,
         }
       );
@@ -127,7 +128,7 @@ export async function GET(req: NextRequest) {
     
     const userId = token.sub;
     
-    // Buscar assinatura do usuário
+    // Buscar assinatura do usuário com populate completo do plano
     const subscription = await getUserSubscription(userId);
     
     if (!subscription) {
