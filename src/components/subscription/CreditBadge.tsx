@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import Link from 'next/link';
 
 interface CreditBadgeProps {
-  variant?: 'default' | 'compact' | 'menu' | 'large';
+  variant?: 'default' | 'compact' | 'menu' | 'large' | 'glass';
   className?: string;
   showBuyButton?: boolean;
   [key: string]: unknown;
@@ -16,7 +16,8 @@ const variantClassMap = {
   default: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/15",
   compact: "inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary dark:bg-primary/15",
   menu: "inline-flex flex-col items-start p-2 rounded-md hover:bg-accent hover:text-accent-foreground",
-  large: "inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-foreground/90 text-white font-semibold shadow-md hover:shadow-lg transition-shadow"
+  large: "inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-foreground/90 text-white font-semibold shadow-md hover:shadow-lg transition-shadow",
+  glass: "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/10 backdrop-blur-md border border-primary/20 text-primary hover:bg-primary/15 hover:border-primary/30 transition-all shadow-sm hover:shadow-primary/5"
 };
 
 export function CreditBadge({ 
@@ -79,10 +80,10 @@ export function CreditBadge({
             {...props}
           >
             {loading ? (
-              <Loader2 size={variant === 'compact' ? 12 : variant === 'large' ? 20 : 16} className="mr-2 animate-spin" />
+              <Loader2 size={variant === 'compact' ? 12 : variant === 'large' || variant === 'glass' ? 20 : 16} className="mr-2 animate-spin" />
             ) : (
-              variant === 'large' ? 
-                <Sparkles size={20} className="mr-2" /> : 
+              variant === 'large' || variant === 'glass' ? 
+                <Sparkles size={variant === 'glass' ? 16 : 20} className={variant === 'glass' ? '' : 'mr-2'} /> : 
                 <CreditCard size={variant === 'compact' ? 12 : 16} className="mr-1" />
             )}
             

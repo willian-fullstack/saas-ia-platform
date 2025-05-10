@@ -1,7 +1,8 @@
 {
   "extends": [
-    "next",
-    "next/core-web-vitals"
+    "next/core-web-vitals",
+    "eslint:recommended",
+    "plugin:react/recommended"
   ],
   "env": {
     "browser": true,
@@ -16,5 +17,9 @@
     "react": {
       "version": "detect"
     }
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/prop-types": "off"
   }
 } 
