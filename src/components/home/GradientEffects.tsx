@@ -6,6 +6,27 @@ export function GradientEffects() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const isMovingRef = useRef(false);
+  const [particles, setParticles] = useState<Array<{
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+    duration: number;
+    delay: number;
+  }>>([]);
+
+  useEffect(() => {
+    // Gerar partículas aleatórias apenas do lado do cliente
+    const newParticles = Array.from({ length: 6 }).map(() => ({
+      width: Math.random() * 6 + 2,
+      height: Math.random() * 6 + 2,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: Math.random() * 10 + 10,
+      delay: Math.random() * 5,
+    }));
+    setParticles(newParticles);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -61,17 +82,17 @@ export function GradientEffects() {
       
       {/* Particulas que flutuam (apenas visual, não interativas) */}
       <div className="absolute inset-0 opacity-30">
-        {Array.from({ length: 6 }).map((_, index) => (
+        {particles.map((particle, index) => (
           <div 
             key={index}
             className="absolute rounded-full bg-primary/40 blur-sm animate-float"
             style={{
-              width: `${Math.random() * 6 + 2}px`,
-              height: `${Math.random() * 6 + 2}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDuration: `${Math.random() * 10 + 10}s`,
-              animationDelay: `${Math.random() * 5}s`,
+              width: `${particle.width}px`,
+              height: `${particle.height}px`,
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+              animationDuration: `${particle.duration}s`,
+              animationDelay: `${particle.delay}s`,
             }}
           />
         ))}
