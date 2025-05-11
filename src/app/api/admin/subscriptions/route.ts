@@ -1,9 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDB } from "@/lib/db/connection";
-import Subscription from "@/lib/db/models/Subscription";
+import { getSubscriptionModel, ISubscription } from "@/lib/db/models/Subscription";
 import User from "@/lib/db/models/User";
 import Plan from "@/lib/db/models/Plan";
+import { Schema } from "mongoose";
+
+// Interface para representar o usuário populado
+interface PopulatedUser {
+  _id: Schema.Types.ObjectId;
+  name: string;
+  email: string;
+}
+
+// Interface para representar o plano populado
+interface PopulatedPlan {
+  _id: Schema.Types.ObjectId;
+  name: string;
+  price: number;
+  credits: number;
+}
+
+// Interface para representar a assinatura populada
+interface PopulatedSubscription extends Omit<ISubscription, 'userId' | 'planId'> {
+  userId: PopulatedUser;
+  planId: PopulatedPlan;
+  _id: Schema.Types.ObjectId;
+  __v: number;
+}
+
+// Interface para o formato processado para UI
+interface ProcessedSubscription extends ISubscription {
+  _id: Schema.Types.ObjectId;
+  __v: number;
+  user?: {
+    _id: Schema.Types.ObjectId;
+    name: string;
+    email: string;
+  };
+}
 
 /**
  * Endpoint para listar assinaturas para administradores
@@ -49,6 +84,9 @@ export async function GET(req: NextRequest) {
       filter.userId = userId;
     }
     
+    // Buscar o modelo de Subscription
+    const Subscription = await getSubscriptionModel();
+    
     // Buscar assinaturas com população de usuário e plano
     const subscriptions = await Subscription.find(filter)
       .populate({
@@ -65,19 +103,24 @@ export async function GET(req: NextRequest) {
       .limit(limit);
     
     // Processar resultados para formato adequado
-    const processedSubscriptions = subscriptions.map(sub => {
-      const subscription = sub.toObject();
+    const processedSubscriptions = subscriptions.map((sub) => {
+      const subscription = sub.toObject() as PopulatedSubscription;
+      
+      // Criar objeto processado para UI
+      const processed: ProcessedSubscription = {
+        ...subscription,
+        userId: subscription.userId._id, // Convertendo de volta para o formato original
+        planId: subscription.planId._id, // Convertendo de volta para o formato original
+      };
       
       // Adicionar informações do usuário em um campo separado para maior clareza na UI
-      if (subscription.userId && typeof subscription.userId !== 'string') {
-        subscription.user = {
-          _id: subscription.userId._id,
-          name: subscription.userId.name,
-          email: subscription.userId.email
-        };
-      }
+      processed.user = {
+        _id: subscription.userId._id,
+        name: subscription.userId.name,
+        email: subscription.userId.email
+      };
       
-      return subscription;
+      return processed;
     });
     
     // Retornar assinaturas

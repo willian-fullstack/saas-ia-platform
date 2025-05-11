@@ -11,8 +11,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CreditCard, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
+// Estendendo a interface IPlan para incluir o _id
+interface IPlanWithId extends IPlan {
+  _id: string;
+}
+
 interface SubscriptionClientProps {
-  plans: IPlan[];
+  plans: IPlanWithId[];  // Usando a interface estendida
   currentSubscription: ISubscription | null;
   currentCredits: number;
 }
@@ -23,7 +28,7 @@ export default function SubscriptionClient({
   currentCredits
 }: SubscriptionClientProps) {
   const router = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState<IPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<IPlanWithId | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -31,7 +36,7 @@ export default function SubscriptionClient({
   // Obter informações do plano atual
   const currentPlanId = currentSubscription?.planId;
   const currentPlan = currentPlanId 
-    ? plans.find(p => p._id?.toString() === currentPlanId.toString()) 
+    ? plans.find(p => p._id.toString() === currentPlanId.toString()) 
     : null;
     
   // Status da assinatura
@@ -48,7 +53,7 @@ export default function SubscriptionClient({
     : '-';
   
   // Função para assinar um plano
-  const handleSubscribe = async (plan: IPlan) => {
+  const handleSubscribe = async (plan: IPlanWithId) => {
     try {
       setLoading(true);
       setError(null);
@@ -137,7 +142,7 @@ export default function SubscriptionClient({
     <div>
       {/* Mensagens de erro ou sucesso */}
       {error && (
-        <Alert variant="destructive" className="mb-6">
+        <Alert variant="error" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Erro</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -229,9 +234,9 @@ export default function SubscriptionClient({
         <div className="grid gap-6 md:grid-cols-3">
           {plans.map((plan) => (
             <PlanCard 
-              key={plan._id?.toString()} 
+              key={plan._id.toString()} 
               plan={plan}
-              isCurrentPlan={currentPlan?._id?.toString() === plan._id?.toString()}
+              isCurrentPlan={currentPlan?._id.toString() === plan._id.toString()}
               onSelectPlan={setSelectedPlan}
             />
           ))}

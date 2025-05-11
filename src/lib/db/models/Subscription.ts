@@ -77,7 +77,7 @@ const SubscriptionSchema = new Schema({
 let Subscription: mongoose.Model<ISubscription> | null = null;
 
 // Garantir que o modelo seja inicializado apenas uma vez
-const getSubscriptionModel = async () => {
+export const getSubscriptionModel = async () => {
   await connectToDB();
   
   if (!Subscription) {
