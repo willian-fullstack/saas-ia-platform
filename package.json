@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-admin": "node scripts/setup-admin.js"
+    "setup-admin": "node scripts/setup-admin.js",
+    "check-env": "node scripts/check-env.js",
+    "postinstall": "npm run check-env"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.10",

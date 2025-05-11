@@ -19,10 +19,19 @@ interface CreditBalanceResponse {
 // GET - Obter o saldo de créditos do usuário
 export async function GET(req: NextRequest) {
   try {
-    // Verificar autenticação
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    // Verificar autenticação com mais logs para diagnóstico
+    console.log("Iniciando verificação de autenticação na API de créditos");
+    
+    const token = await getToken({ 
+      req, 
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === "production"
+    });
+    
+    console.log("Token obtido:", token ? "Token válido" : "Token ausente");
     
     if (!token || !token.sub) {
+      console.log("Falha de autenticação: Token inválido ou ausente");
       return NextResponse.json({
         success: false,
         message: "Usuário não autenticado"
@@ -30,16 +39,20 @@ export async function GET(req: NextRequest) {
     }
     
     const userId = token.sub;
+    console.log("Usuário autenticado, ID:", userId);
     
     // Buscar usuário no banco de dados
     const user = await getUserById(userId);
     
     if (!user) {
+      console.log("Usuário não encontrado no banco de dados:", userId);
       return NextResponse.json({
         success: false,
         message: "Usuário não encontrado"
       }, { status: 404 });
     }
+    
+    console.log("Usuário encontrado:", user.email);
     
     // Parâmetros de paginação para histórico
     const url = new URL(req.url);
@@ -51,7 +64,7 @@ export async function GET(req: NextRequest) {
     // Preparar resposta
     const response: CreditBalanceResponse = {
       success: true,
-      credits: user.credits
+      credits: user.credits || 0 // Garantir que não seja undefined
     };
     
     // Se solicitado, incluir histórico de créditos
@@ -64,6 +77,7 @@ export async function GET(req: NextRequest) {
       };
     }
     
+    console.log("Resposta de créditos enviada com sucesso");
     return NextResponse.json(response);
   } catch (error) {
     console.error('Erro ao buscar saldo de créditos:', error);

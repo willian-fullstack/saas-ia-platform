@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CreditCard, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface SubscriptionClientProps {
   plans: IPlan[];
@@ -53,7 +54,9 @@ export default function SubscriptionClient({
       setError(null);
       setSuccess(null);
       
-      const response = await fetch('/api/subscription/subscribe', {
+      console.log(`Iniciando assinatura para plano: ${plan.name} (${plan._id})`);
+      
+      const response = await fetchWithAuth('/api/subscription/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -64,12 +67,16 @@ export default function SubscriptionClient({
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Erro ao processar assinatura');
+        console.error(`Erro na resposta: ${response.status} - ${JSON.stringify(data)}`);
+        throw new Error(data.message || `Erro ao processar assinatura (${response.status})`);
       }
       
       if (!data.success) {
+        console.error(`Resposta com sucesso=false: ${JSON.stringify(data)}`);
         throw new Error(data.message || 'Erro ao processar assinatura');
       }
+      
+      console.log(`Resposta da API: ${JSON.stringify(data)}`);
       
       // Se for plano gratuito ou tiver URL de pagamento
       if (data.isFree) {
@@ -77,10 +84,12 @@ export default function SubscriptionClient({
         // Recarregar dados da página
         router.refresh();
       } else if (data.paymentUrl) {
+        console.log(`Redirecionando para pagamento: ${data.paymentUrl}`);
         // Redirecionar para o Mercado Pago
         window.location.href = data.paymentUrl;
       }
     } catch (err) {
+      console.error('Erro ao assinar plano:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setLoading(false);
@@ -94,24 +103,30 @@ export default function SubscriptionClient({
       setError(null);
       setSuccess(null);
       
-      const response = await fetch('/api/subscription/subscribe', {
+      console.log('Iniciando cancelamento de assinatura');
+      
+      const response = await fetchWithAuth('/api/subscription/subscribe', {
         method: 'PATCH'
       });
       
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Erro ao cancelar assinatura');
+        console.error(`Erro na resposta: ${response.status} - ${JSON.stringify(data)}`);
+        throw new Error(data.message || `Erro ao cancelar assinatura (${response.status})`);
       }
       
       if (!data.success) {
+        console.error(`Resposta com sucesso=false: ${JSON.stringify(data)}`);
         throw new Error(data.message || 'Erro ao cancelar assinatura');
       }
       
+      console.log('Assinatura cancelada com sucesso');
       setSuccess('Assinatura cancelada com sucesso!');
       // Recarregar dados da página
       router.refresh();
     } catch (err) {
+      console.error('Erro ao cancelar assinatura:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setLoading(false);

@@ -8,8 +8,7 @@ NEXTAUTH_URL=http://localhost:3000
 
 # URL Base Pública (para uso com Ngrok ou Vercel)
 NEXT_PUBLIC_BASE_URL=https://686a-2804-77c-b00c-a01-fd7f-a67b-8fdd-5247.ngrok-free.app
-NEXT_PUBLIC_WEBHOOK_URL=https://686a-2804-77c-b00c-a01-fd7f-a67b-8fdd-5247.ngrok-free.app/api/webhooks/mercadopago
-
+NEXT_PUBLIC_WEBHOOK_URL=https://d6a9-2804-77c-b00c-a01-d0d9-a9bb-2db9-d998.ngrok-free.app/api/webhooks/mercadopago
 # Chave para revalidação de cache
 REVALIDATION_SECRET=revalidacao_cache_segredo_123456
 

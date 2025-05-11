@@ -24,6 +24,12 @@ declare module "next-auth" {
   }
 }
 
+// Verificar e registrar informações sobre a configuração
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+if (!NEXTAUTH_SECRET) {
+  console.error("AVISO: NEXTAUTH_SECRET não está definido!");
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -75,6 +81,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
   pages: {
     signIn: "/login",
@@ -84,6 +91,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        // Adicionar dados detalhados para log
+        console.log("JWT criado/atualizado para usuário:", user.email);
       }
       return token;
     },
@@ -110,7 +119,18 @@ export const authOptions: NextAuthOptions = {
     },
   },
   debug: process.env.NODE_ENV === "development",
+  secret: NEXTAUTH_SECRET,
+  jwt: {
+    // Aumentar a segurança
+    secret: NEXTAUTH_SECRET,
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
+  },
+  // Aumentar a segurança dos tokens
+  useSecureCookies: process.env.NODE_ENV === "production",
 };
+
+// Log para diagnóstico durante a inicialização
+console.log("NextAuth configurado. Ambiente:", process.env.NODE_ENV);
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST }; 
