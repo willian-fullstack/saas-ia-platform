@@ -28,6 +28,9 @@ export interface LandingPageContent {
   style?: string;
   targetAudience?: string;
   result: string;
+  htmlFile?: string;
+  cssFile?: string;
+  jsFile?: string;
 }
 
 export interface OfferContent {

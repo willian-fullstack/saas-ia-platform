@@ -1483,55 +1483,105 @@ document.addEventListener('DOMContentLoaded', function() {
   // Gerenciar botões de FAQ
   const faqButtons = document.querySelectorAll('.faq-question');
   
-  faqButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      // Toggle classe active no botão
-      this.classList.toggle('active');
-      
-      // Encontrar o elemento de resposta correspondente
-      const answer = this.nextElementSibling;
-      if (answer && (answer.classList.contains('faq-answer') || answer.classList.contains('accordion-content'))) {
-        answer.classList.toggle('visible');
+  if (faqButtons.length > 0) {
+    console.log('FAQ buttons found:', faqButtons.length);
+    
+    faqButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('FAQ button clicked');
         
-        // Se não tem a classe visible, usar max-height para animação
-        if (answer.classList.contains('accordion-content')) {
-          if (answer.style.maxHeight) {
-            answer.style.maxHeight = null;
-          } else {
-            answer.style.maxHeight = answer.scrollHeight + "px";
+        // Toggle classe active no botão
+        this.classList.toggle('active');
+        
+        // Encontrar o elemento de resposta correspondente
+        const answer = this.nextElementSibling;
+        if (answer && (answer.classList.contains('faq-answer') || answer.classList.contains('accordion-content'))) {
+          console.log('Toggling answer visibility');
+          answer.classList.toggle('visible');
+          
+          // Se não tem a classe visible, usar max-height para animação
+          if (answer.classList.contains('accordion-content')) {
+            if (answer.style.maxHeight) {
+              answer.style.maxHeight = null;
+            } else {
+              answer.style.maxHeight = answer.scrollHeight + "px";
+            }
           }
+        } else {
+          console.log('Answer element not found or does not have correct class');
         }
-      }
+      });
     });
-  });
+  } else {
+    console.log('No FAQ buttons found on page');
+    
+    // Tenta encontrar outros tipos de elementos FAQ
+    const altFaqButtons = document.querySelectorAll('[class*="faq"]:not(.faq-answer), [class*="accordion"]:not(.accordion-content), [class*="collapse-trigger"]');
+    if (altFaqButtons.length > 0) {
+      console.log('Alternative FAQ buttons found:', altFaqButtons.length);
+      
+      altFaqButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          const nextEl = this.nextElementSibling;
+          if (nextEl) {
+            if (nextEl.style.display === 'none' || nextEl.style.display === '') {
+              nextEl.style.display = 'block';
+            } else {
+              nextEl.style.display = 'none';
+            }
+          }
+        });
+      });
+    }
+  }
   
   // Gerenciar também accordions padrão
   const accordionHeaders = document.querySelectorAll('.accordion-header');
   
-  accordionHeaders.forEach(header => {
-    header.addEventListener('click', function() {
-      // Toggle classe active no header
-      this.classList.toggle('active');
-      
-      // Encontrar o conteúdo correspondente
-      const content = this.nextElementSibling;
-      if (content && content.classList.contains('accordion-content')) {
-        if (content.style.maxHeight) {
-          content.style.maxHeight = null;
-        } else {
-          content.style.maxHeight = content.scrollHeight + "px";
+  if (accordionHeaders.length > 0) {
+    console.log('Accordion headers found:', accordionHeaders.length);
+    
+    accordionHeaders.forEach(header => {
+      header.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Accordion header clicked');
+        
+        // Toggle classe active no header
+        this.classList.toggle('active');
+        
+        // Encontrar o conteúdo correspondente
+        const content = this.nextElementSibling;
+        if (content && content.classList.contains('accordion-content')) {
+          if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+          } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+          }
         }
-      }
+      });
     });
-  });
+  }
   
   // Verificar e corrigir URLs de imagens quebradas
   const images = document.querySelectorAll('img');
   const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150"%3E%3Crect fill="%23f0f0f0" width="300" height="150"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="30" dy=".3em" text-anchor="middle" x="150" y="75"%3EImagem%3C/text%3E%3C/svg%3E';
   
+  console.log('Processing images:', images.length);
+  
   images.forEach(img => {
+    // Garantir que os caminhos das imagens sejam absolutos
+    if (img.src && img.src.startsWith('/uploads/')) {
+      console.log('Converting relative path to absolute:', img.src);
+      const currentOrigin = window.location.origin;
+      img.src = currentOrigin + img.src;
+      console.log('New image path:', img.src);
+    }
+    
     // Substituir imagem quebrada por placeholder
     img.onerror = function() {
+      console.log('Image failed to load:', this.src);
       this.src = placeholderImage;
       this.style.maxWidth = '300px';
       this.style.maxHeight = '150px';
@@ -1542,6 +1592,7 @@ document.addEventListener('DOMContentLoaded', function() {
         img.getAttribute('src') === '#' || 
         img.getAttribute('src') === '' ||
         img.getAttribute('src').includes('placeholder.com')) {
+      console.log('Image has invalid source:', img.getAttribute('src'));
       img.src = placeholderImage;
       img.style.maxWidth = '300px';
       img.style.maxHeight = '150px';
@@ -1567,6 +1618,160 @@ document.addEventListener('DOMContentLoaded', function() {
     checkScroll();
     window.addEventListener('scroll', checkScroll);
   }
+  
+  // Adicionar botões para download dos arquivos separados
+  const addDownloadButtons = () => {
+    // Verificar se já existe um container de download
+    if (document.querySelector('.download-container')) {
+      return;
+    }
+    
+    // Criar container para os botões de download
+    const downloadContainer = document.createElement('div');
+    downloadContainer.className = 'download-container';
+    downloadContainer.style.position = 'fixed';
+    downloadContainer.style.bottom = '20px';
+    downloadContainer.style.right = '20px';
+    downloadContainer.style.zIndex = '9999';
+    downloadContainer.style.background = '#fff';
+    downloadContainer.style.padding = '10px';
+    downloadContainer.style.borderRadius = '5px';
+    downloadContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    downloadContainer.style.display = 'flex';
+    downloadContainer.style.flexDirection = 'column';
+    downloadContainer.style.gap = '5px';
+    
+    // Botão para baixar HTML
+    const downloadHtmlBtn = document.createElement('button');
+    downloadHtmlBtn.textContent = 'Baixar HTML';
+    downloadHtmlBtn.className = 'download-btn';
+    downloadHtmlBtn.style.padding = '8px 12px';
+    downloadHtmlBtn.style.border = 'none';
+    downloadHtmlBtn.style.borderRadius = '4px';
+    downloadHtmlBtn.style.background = '#007bff';
+    downloadHtmlBtn.style.color = '#fff';
+    downloadHtmlBtn.style.cursor = 'pointer';
+    downloadHtmlBtn.style.fontSize = '14px';
+    downloadHtmlBtn.onclick = () => downloadFile('html');
+    
+    // Botão para baixar CSS
+    const downloadCssBtn = document.createElement('button');
+    downloadCssBtn.textContent = 'Baixar CSS';
+    downloadCssBtn.className = 'download-btn';
+    downloadCssBtn.style.padding = '8px 12px';
+    downloadCssBtn.style.border = 'none';
+    downloadCssBtn.style.borderRadius = '4px';
+    downloadCssBtn.style.background = '#28a745';
+    downloadCssBtn.style.color = '#fff';
+    downloadCssBtn.style.cursor = 'pointer';
+    downloadCssBtn.style.fontSize = '14px';
+    downloadCssBtn.onclick = () => downloadFile('css');
+    
+    // Botão para baixar JS
+    const downloadJsBtn = document.createElement('button');
+    downloadJsBtn.textContent = 'Baixar JS';
+    downloadJsBtn.className = 'download-btn';
+    downloadJsBtn.style.padding = '8px 12px';
+    downloadJsBtn.style.border = 'none';
+    downloadJsBtn.style.borderRadius = '4px';
+    downloadJsBtn.style.background = '#ffc107';
+    downloadJsBtn.style.color = '#000';
+    downloadJsBtn.style.cursor = 'pointer';
+    downloadJsBtn.style.fontSize = '14px';
+    downloadJsBtn.onclick = () => downloadFile('js');
+    
+    // Adicionar botões ao container
+    downloadContainer.appendChild(downloadHtmlBtn);
+    downloadContainer.appendChild(downloadCssBtn);
+    downloadContainer.appendChild(downloadJsBtn);
+    
+    // Adicionar container ao body
+    document.body.appendChild(downloadContainer);
+  };
+  
+  // Função para extrair e baixar os arquivos
+  const downloadFile = (type) => {
+    let content;
+    let filename;
+    
+    // Extrair o conteúdo baseado no tipo
+    if (type === 'html') {
+      // Extrair HTML (sem head e sem script e style inline)
+      let htmlClone = document.documentElement.cloneNode(true);
+      let headElement = htmlClone.querySelector('head');
+      let bodyElement = htmlClone.querySelector('body');
+      
+      // Remover scripts inline
+      Array.from(bodyElement.querySelectorAll('script')).forEach(script => {
+        script.parentNode.removeChild(script);
+      });
+      
+      // Adicionar links para CSS e JS
+      const styleLink = document.createElement('link');
+      styleLink.rel = 'stylesheet';
+      styleLink.href = 'styles.css';
+      
+      const scriptTag = document.createElement('script');
+      scriptTag.src = 'script.js';
+      scriptTag.defer = true;
+      
+      // Limpar head existente, mantendo meta tags
+      Array.from(headElement.children).forEach(child => {
+        if (child.tagName !== 'META' && child.tagName !== 'TITLE') {
+          child.remove();
+        }
+      });
+      
+      headElement.appendChild(styleLink);
+      bodyElement.appendChild(scriptTag);
+      
+      content = '<!DOCTYPE html>\\n' + htmlClone.outerHTML;
+      filename = 'index.html';
+    }
+    
+    else if (type === 'css') {
+      // Extrair CSS dos estilos inline
+      const styleElements = document.querySelectorAll('style');
+      content = '';
+      
+      styleElements.forEach(style => {
+        content += style.textContent + '\\n\\n';
+      });
+      
+      filename = 'styles.css';
+    }
+    
+    else if (type === 'js') {
+      // Extrair JS dos scripts inline
+      const scriptElements = document.querySelectorAll('script:not([src])');
+      content = '';
+      
+      scriptElements.forEach(script => {
+        content += script.textContent + '\\n\\n';
+      });
+      
+      filename = 'script.js';
+    }
+    
+    // Criar e baixar o arquivo
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    
+    document.body.appendChild(a);
+    a.click();
+    
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  };
+  
+  // Adicionar botões de download após carregar a página
+  setTimeout(addDownloadButtons, 1000);
 });
 `;
 
@@ -1592,8 +1797,7 @@ ${enhancedJS}
   </script>
 </body>
 </html>`;
-    }
-  catch (error) {
+  } catch (error) {
     console.error("Erro ao criar HTML unificado:", error);
     
     // Em caso de erro, retornar um HTML básico com o conteúdo original
@@ -1679,7 +1883,7 @@ export async function POST(request: Request) {
           // Gravar o arquivo
           await writeFile(filePath, buffer);
           
-          // URL para acessar a imagem
+          // URL para acessar a imagem - usar URL absoluta
           productImageUrl = `/uploads/${fileName}`;
           
           console.log(`Imagem do produto salva em: ${filePath}`);
@@ -1846,6 +2050,7 @@ DIRETRIZES PARA O CSS:
 
 DIRETRIZES PARA O JAVASCRIPT:
 - Implemente contador regressivo funcional (não apenas visual)
+- Adicione OBRIGATORIAMENTE controladores para o FAQ que façam os itens abrir e fechar quando clicados
 - Adicione comportamentos interativos (accordion para FAQs, scrolling suave)
 - Garanta carregar e funcionar sem plugins externos
 - Inclua animações ativadas por scroll para elementos entrando na viewport
@@ -1987,7 +2192,11 @@ LEMBRE-SE:
                 content: `Landing page para ${safeProduct} focada em ${safeNiche}`
               }
             ],
-            result: landingPageHTML
+            result: landingPageHTML,
+            // Armazenar os arquivos separados para possível download posterior
+            htmlFile: html,
+            cssFile: css,
+            jsFile: js
           };
           
           // Salvar a criação no banco de dados
@@ -2042,6 +2251,89 @@ function createFallbackLandingPage(niche: string, product: string, style: string
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
       ${getDefaultCSS(style)}
+      
+      /* Melhorias para FAQ */
+      .faq-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        text-align: left;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .faq-question:hover {
+        background-color: #e9ecef;
+      }
+      
+      .faq-question i {
+        transition: transform 0.3s ease;
+      }
+      
+      .faq-question.active i {
+        transform: rotate(180deg);
+      }
+      
+      .faq-answer {
+        padding: 1rem;
+        border: 1px solid #e9ecef;
+        border-top: none;
+        border-radius: 0 0 0.5rem 0.5rem;
+        margin-top: -0.5rem;
+        margin-bottom: 1rem;
+        display: none;
+        background-color: #fff;
+      }
+      
+      .faq-answer.visible {
+        display: block;
+      }
+      
+      /* Botões de download */
+      .download-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #fff;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        z-index: 9999;
+      }
+      
+      .download-btn {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      
+      .download-btn.html {
+        background: #007bff;
+      }
+      
+      .download-btn.css {
+        background: #28a745;
+      }
+      
+      .download-btn.js {
+        background: #ffc107;
+        color: #000;
+      }
     </style>
 </head>
 <body>
@@ -2105,6 +2397,41 @@ function createFallbackLandingPage(niche: string, product: string, style: string
         </div>
     </section>
 
+    <section id="faq" class="faq">
+        <div class="container">
+            <h2>Perguntas <span>Frequentes</span></h2>
+            <div class="accordion">
+                <div class="accordion-item">
+                    <button class="faq-question">
+                        O que é o ${product}?
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>${product} é uma solução inovadora para ${targetAudience} que desejam resultados eficientes no nicho de ${niche}.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="faq-question">
+                        Como funciona o ${product}?
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>O ${product} funciona através de um processo simples e eficaz, desenvolvido especificamente para atender às necessidades de ${targetAudience}.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="faq-question">
+                        Qual o valor do investimento?
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>O investimento para adquirir o ${product} é de ${pricing}, um valor extremamente acessível considerando todos os benefícios oferecidos.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="cta-section">
         <div class="container">
             <h2>Garanta seu ${product} agora</h2>
@@ -2115,6 +2442,141 @@ function createFallbackLandingPage(niche: string, product: string, style: string
 
     <script>
       ${getDefaultJS()}
+      
+      // Melhorias para FAQ e correção de imagens
+      document.addEventListener('DOMContentLoaded', function() {
+        // Gerenciar botões de FAQ
+        const faqButtons = document.querySelectorAll('.faq-question');
+        
+        faqButtons.forEach(button => {
+          button.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('FAQ button clicked');
+            
+            // Toggle classe active no botão
+            this.classList.toggle('active');
+            
+            // Encontrar o elemento de resposta correspondente
+            const answer = this.nextElementSibling;
+            if (answer && answer.classList.contains('faq-answer')) {
+              answer.classList.toggle('visible');
+            }
+          });
+        });
+        
+        // Corrigir caminhos de imagens relativas para absolutas
+        const images = document.querySelectorAll('img');
+        const currentOrigin = window.location.origin;
+        
+        images.forEach(img => {
+          if (img.src && img.src.startsWith('/uploads/')) {
+            img.src = currentOrigin + img.src;
+          }
+        });
+        
+        // Adicionar botões de download
+        const downloadContainer = document.createElement('div');
+        downloadContainer.className = 'download-container';
+        
+        const downloadHtmlBtn = document.createElement('button');
+        downloadHtmlBtn.textContent = 'Baixar HTML';
+        downloadHtmlBtn.className = 'download-btn html';
+        downloadHtmlBtn.onclick = function() {
+          downloadFile('html');
+        };
+        
+        const downloadCssBtn = document.createElement('button');
+        downloadCssBtn.textContent = 'Baixar CSS';
+        downloadCssBtn.className = 'download-btn css';
+        downloadCssBtn.onclick = function() {
+          downloadFile('css');
+        };
+        
+        const downloadJsBtn = document.createElement('button');
+        downloadJsBtn.textContent = 'Baixar JS';
+        downloadJsBtn.className = 'download-btn js';
+        downloadJsBtn.onclick = function() {
+          downloadFile('js');
+        };
+        
+        downloadContainer.appendChild(downloadHtmlBtn);
+        downloadContainer.appendChild(downloadCssBtn);
+        downloadContainer.appendChild(downloadJsBtn);
+        
+        document.body.appendChild(downloadContainer);
+        
+        function downloadFile(type) {
+          let content;
+          let filename;
+          
+          if (type === 'html') {
+            let htmlClone = document.documentElement.cloneNode(true);
+            let head = htmlClone.querySelector('head');
+            let body = htmlClone.querySelector('body');
+            
+            // Remover scripts inline
+            Array.from(body.querySelectorAll('script')).forEach(script => {
+              script.parentNode.removeChild(script);
+            });
+            
+            // Adicionar links para CSS e JS
+            const styleLink = document.createElement('link');
+            styleLink.rel = 'stylesheet';
+            styleLink.href = 'styles.css';
+            
+            const scriptTag = document.createElement('script');
+            scriptTag.src = 'script.js';
+            
+            // Limpar head existente, mantendo meta tags
+            Array.from(head.children).forEach(child => {
+              if (child.tagName !== 'META' && child.tagName !== 'TITLE') {
+                child.remove();
+              }
+            });
+            
+            head.appendChild(styleLink);
+            body.appendChild(scriptTag);
+            
+            content = '<!DOCTYPE html>\\n' + htmlClone.outerHTML;
+            filename = 'index.html';
+          } 
+          else if (type === 'css') {
+            const styleElements = document.querySelectorAll('style');
+            content = '';
+            
+            styleElements.forEach(style => {
+              content += style.textContent + '\\n\\n';
+            });
+            
+            filename = 'styles.css';
+          } 
+          else if (type === 'js') {
+            const scriptElements = document.querySelectorAll('script:not([src])');
+            content = '';
+            
+            scriptElements.forEach(script => {
+              content += script.textContent + '\\n\\n';
+            });
+            
+            filename = 'script.js';
+          }
+          
+          const blob = new Blob([content], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.style.display = 'none';
+          
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 100);
+        }
+      });
     </script>
 </body>
 </html>`;
@@ -2126,6 +2588,17 @@ function createFallbackLandingPage(niche: string, product: string, style: string
       
       if (session?.user?.id) {
         const title = `Landing Page - ${product} (${niche})`;
+        
+        // Separar os arquivos para possível download posterior
+        const htmlContent = fallbackHTML.replace(/<style>([\s\S]*?)<\/style>/, '')
+                                       .replace(/<script>([\s\S]*?)<\/script>/, '')
+                                       .replace(/\n\s*\n/g, '\n');
+                                       
+        const cssMatch = fallbackHTML.match(/<style>([\s\S]*?)<\/style>/);
+        const cssContent = cssMatch ? cssMatch[1] : '';
+        
+        const jsMatch = fallbackHTML.match(/<script>([\s\S]*?)<\/script>/);
+        const jsContent = jsMatch ? jsMatch[1] : '';
         
         // Garantir que o conteúdo esteja no formato esperado para LandingPageContent
         const landingPageContent = {
@@ -2140,7 +2613,11 @@ function createFallbackLandingPage(niche: string, product: string, style: string
               content: `Landing page para ${product} focada em ${niche}`
             }
           ],
-          result: fallbackHTML
+          result: fallbackHTML,
+          // Armazenar os arquivos separados para possível download posterior
+          htmlFile: htmlContent,
+          cssFile: cssContent,
+          jsFile: jsContent
         };
         
         // Salvar a criação no banco de dados
