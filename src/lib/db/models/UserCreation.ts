@@ -19,7 +19,7 @@ export interface CopywritingContent {
 export interface LandingPageContent {
   title: string;
   description: string;
-  sections: Array<{
+  sections?: Array<{
     type: string;
     title?: string;
     content: string;

@@ -2,11 +2,8 @@ import { NextResponse } from 'next/server';
 import { performance } from 'node:perf_hooks';
 import { getTemplateByStyle } from '@/templates/landing-page-templates';
 import { writeFile } from 'fs/promises';
-import * as path from 'path';
-import * as fs from 'fs';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { saveUserCreation } from "@/lib/db/models/UserCreation";
+import path from 'path';
+import fs from 'fs';
 
 // Função para fornecer CSS padrão com base no estilo selecionado
 function getDefaultCSS(style: string): string {
@@ -59,6 +56,15 @@ function getDefaultCSS(style: string): string {
     img {
       max-width: 100%;
       height: auto;
+      display: block; /* Evita espaços em branco abaixo das imagens */
+    }
+    
+    /* Fix para imagens quebradas */
+    img[src=""], img:not([src]) {
+      opacity: 0;
+      background: #f0f0f0 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>') no-repeat center / 64px;
+      min-height: 120px;
+      border: 1px dashed #ccc;
     }
     
     section {
@@ -79,6 +85,12 @@ function getDefaultCSS(style: string): string {
     .btn-primary {
       background-color: #007bff;
       color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: #0069d9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     
     .btn-large {
@@ -276,7 +288,7 @@ function getDefaultCSS(style: string): string {
       border: 1px solid #dee2e6;
     }
     
-    .accordion-header {
+    .accordion-header, .faq-question {
       background-color: #f8f9fa;
       padding: 15px 20px;
       width: 100%;
@@ -287,9 +299,14 @@ function getDefaultCSS(style: string): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      transition: background-color 0.3s ease;
     }
     
-    .accordion-content {
+    .accordion-header:hover, .faq-question:hover {
+      background-color: #e9ecef;
+    }
+    
+    .accordion-content, .faq-answer {
       padding: 0 20px;
       max-height: 0;
       overflow: hidden;
@@ -297,12 +314,43 @@ function getDefaultCSS(style: string): string {
       background-color: white;
     }
     
-    .accordion-content p {
+    .accordion-content p, .faq-answer p {
       padding: 20px 0;
     }
     
-    .accordion-item.active .accordion-content {
-      max-height: 200px;
+    .accordion-item.active .accordion-content, 
+    .faq-item.active .faq-answer {
+      max-height: 500px;
+    }
+    
+    /* Estilos específicos para FAQs alternativas */
+    .faq-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .faq-item {
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid #dee2e6;
+      overflow: hidden;
+    }
+    
+    .faq-question {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid transparent;
+    }
+    
+    .faq-item.active .faq-question {
+      border-bottom-color: #dee2e6;
+    }
+    
+    .faq-question i {
+      transition: transform 0.3s ease;
+    }
+    
+    .faq-item.active .faq-question i {
+      transform: rotate(180deg);
     }
     
     .footer {
@@ -442,6 +490,35 @@ function getDefaultCSS(style: string): string {
     .animate-on-scroll.animated {
       opacity: 1;
       transform: translateY(0);
+    }
+    
+    /* Estilo para botões FAQ não padronizados */
+    button.faq-question {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 15px 20px;
+      background-color: #f8f9fa;
+      border: none;
+      border-radius: 5px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    button.faq-question:hover {
+      background-color: #e9ecef;
+    }
+    
+    button.faq-question i {
+      margin-left: 10px;
+      transition: transform 0.3s ease;
+    }
+    
+    button.faq-question[aria-expanded="true"] i {
+      transform: rotate(180deg);
     }
     
     @media (max-width: 992px) {
@@ -792,6 +869,21 @@ function getDefaultJS(): string {
   return `
     // Esperar o carregamento do DOM
     document.addEventListener('DOMContentLoaded', function() {
+      // Garantir que o Font Awesome esteja carregado
+      function loadFontAwesome() {
+        if (!document.getElementById('fontawesome-css')) {
+          const link = document.createElement('link');
+          link.id = 'fontawesome-css';
+          link.rel = 'stylesheet';
+          link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+          document.head.appendChild(link);
+          console.log('Font Awesome carregado dinamicamente');
+        }
+      }
+      
+      // Carregar Font Awesome
+      loadFontAwesome();
+      
       // Contador regressivo
       function startCountdown() {
         const counters = ['timer', 'timer2'];
@@ -839,37 +931,151 @@ function getDefaultJS(): string {
       // Iniciar o contador
       startCountdown();
       
-      // Accordion para FAQs
-      const accordionItems = document.querySelectorAll('.accordion-item');
-      
-      accordionItems.forEach(function(item) {
-        const header = item.querySelector('.accordion-header');
-        const content = item.querySelector('.accordion-content');
-        
-        if (header && content) {
-          header.addEventListener('click', function() {
-            // Fechar todos os outros acordeões
-            accordionItems.forEach(function(otherItem) {
-              if (otherItem !== item) {
-                otherItem.classList.remove('active');
-                const otherContent = otherItem.querySelector('.accordion-content');
-                if (otherContent) {
-                  otherContent.style.maxHeight = null;
+      // Inicializar todos os tipos de FAQ (tanto accordion padrão como outros estilos de FAQ)
+      function initAllFaqs() {
+        // 1. Accordion padrão
+        const accordionItems = document.querySelectorAll('.accordion-item');
+        accordionItems.forEach(function(item) {
+          const header = item.querySelector('.accordion-header');
+          const content = item.querySelector('.accordion-content');
+          
+          if (header && content) {
+            header.addEventListener('click', function() {
+              // Fechar outros itens
+              accordionItems.forEach(function(otherItem) {
+                if (otherItem !== item) {
+                  otherItem.classList.remove('active');
+                  const otherContent = otherItem.querySelector('.accordion-content');
+                  if (otherContent) {
+                    otherContent.style.maxHeight = null;
+                  }
                 }
+              });
+              
+              // Alternar o atual
+              item.classList.toggle('active');
+              
+              if (item.classList.contains('active')) {
+                content.style.maxHeight = content.scrollHeight + 'px';
+              } else {
+                content.style.maxHeight = null;
               }
             });
+          }
+        });
+        
+        // 2. Itens de FAQ classe específica
+        const faqItems = document.querySelectorAll('.faq-item');
+        faqItems.forEach(function(item) {
+          const question = item.querySelector('.faq-question');
+          const answer = item.querySelector('.faq-answer');
+          
+          if (question && answer) {
+            question.addEventListener('click', function() {
+              // Fechar outros itens
+              faqItems.forEach(function(otherItem) {
+                if (otherItem !== item) {
+                  otherItem.classList.remove('active');
+                  const otherAnswer = otherItem.querySelector('.faq-answer');
+                  if (otherAnswer) {
+                    otherAnswer.style.maxHeight = null;
+                  }
+                }
+              });
+              
+              // Alternar o atual
+              item.classList.toggle('active');
+              
+              if (item.classList.contains('active')) {
+                answer.style.maxHeight = answer.scrollHeight + 'px';
+              } else {
+                answer.style.maxHeight = null;
+              }
+            });
+          }
+        });
+        
+        // 3. Botões de FAQ soltos (sem estrutura padrão)
+        const faqButtons = document.querySelectorAll('button.faq-question');
+        faqButtons.forEach(function(button) {
+          if (!button.closest('.faq-item')) {
+            // Se já está dentro de .faq-item, será tratado pelo código acima
+            // Se não, verificamos se está sozinho
+            const nextElement = button.nextElementSibling;
             
-            // Alternar o atual
-            item.classList.toggle('active');
-            
-            if (item.classList.contains('active')) {
-              content.style.maxHeight = content.scrollHeight + 'px';
-            } else {
-              content.style.maxHeight = null;
+            if (nextElement) {
+              // Adicionar os ouvintes de evento
+              button.addEventListener('click', function() {
+                // Alternar classes
+                button.classList.toggle('active');
+                
+                // Se usa aria-expanded, atualizar
+                if (button.hasAttribute('aria-expanded')) {
+                  const isExpanded = button.getAttribute('aria-expanded') === 'true';
+                  button.setAttribute('aria-expanded', !isExpanded);
+                }
+                
+                // Afetar o elemento seguinte (resposta)
+                if (button.classList.contains('active')) {
+                  nextElement.classList.add('active');
+                  nextElement.style.maxHeight = nextElement.scrollHeight + 'px';
+                  
+                  // Girar o ícone se existir
+                  const icon = button.querySelector('i');
+                  if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                  }
+                } else {
+                  nextElement.classList.remove('active');
+                  nextElement.style.maxHeight = null;
+                  
+                  // Resetar o ícone
+                  const icon = button.querySelector('i');
+                  if (icon) {
+                    icon.style.transform = '';
+                  }
+                }
+              });
+              
+              // Inicializar o estilo
+              if (!nextElement.style.maxHeight) {
+                nextElement.style.maxHeight = '0px';
+                nextElement.style.overflow = 'hidden';
+                nextElement.style.transition = 'max-height 0.3s ease-out';
+              }
             }
+          }
+        });
+      }
+      
+      // Inicializar FAQs
+      initAllFaqs();
+      
+      // Corrigir imagens quebradas
+      function fixBrokenImages() {
+        const images = document.querySelectorAll('img');
+        
+        images.forEach(img => {
+          // Adicionar handler para imagens que falham ao carregar
+          img.addEventListener('error', function() {
+            this.style.opacity = '0';
+            this.style.minHeight = '120px';
+            this.style.background = '#f0f0f0 url(data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>) no-repeat center / 64px';
+            this.style.border = '1px dashed #ccc';
           });
-        }
-      });
+          
+          // Verificar se a imagem está sem src ou src vazio
+          if (!img.getAttribute('src') || img.getAttribute('src') === '') {
+            img.style.opacity = '0';
+            img.style.minHeight = '120px';
+            img.style.background = '#f0f0f0 url(data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>) no-repeat center / 64px';
+            img.style.border = '1px dashed #ccc';
+          }
+        });
+      }
+      
+      // Arrumar imagens quebradas
+      fixBrokenImages();
       
       // Animação ao scroll
       const animateElements = document.querySelectorAll('.animate-on-scroll');
@@ -924,6 +1130,56 @@ function getDefaultJS(): string {
           this.style.boxShadow = '';
         });
       });
+      
+      // Garantir que todos os elementos de Font Awesome estejam carregados
+      function loadFontAwesome() {
+        if (document.querySelector('i[class*="fa-"]') && !document.getElementById('font-awesome-css')) {
+          const link = document.createElement('link');
+          link.id = 'font-awesome-css';
+          link.rel = 'stylesheet';
+          link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+          document.head.appendChild(link);
+        }
+      }
+      
+      // Carregar Font Awesome se necessário
+      loadFontAwesome();
+      
+      // Registrar visualização de página nas atividades recentes
+      function registerPageView() {
+        try {
+          // Obter dados básicos da página
+          const pageTitle = document.title || 'Landing Page';
+          const timestamp = new Date().toISOString();
+          
+          // Verificar se o storage está disponível
+          if (window.localStorage) {
+            // Obter atividades existentes ou iniciar um array vazio
+            const recentActivities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
+            
+            // Adicionar atividade atual
+            recentActivities.unshift({
+              type: 'landing_page_view',
+              title: pageTitle,
+              timestamp: timestamp,
+              url: window.location.href
+            });
+            
+            // Manter apenas as últimas 20 atividades
+            const updatedActivities = recentActivities.slice(0, 20);
+            
+            // Salvar no localStorage
+            localStorage.setItem('recentActivities', JSON.stringify(updatedActivities));
+            
+            console.log('Atividade registrada:', pageTitle);
+          }
+        } catch (error) {
+          console.error('Erro ao registrar atividade:', error);
+        }
+      }
+      
+      // Registrar visualização
+      registerPageView();
     });
   `;
 }
@@ -1314,308 +1570,149 @@ function combineFiles(html: string, css: string, js: string): string {
 }
 
 function createUnifiedHTML(html: string, css: string, js: string): string {
+  // Componentes padrão para garantir que a landing page tenha todos os recursos essenciais
+  const defaultHeadContent = `
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Page</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;900&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  `;
+
   try {
-    // Melhorar o estilo do FAQ para garantir que botões de pergunta tenham estilo adequado
-    const enhancedCSS = css + `
-/* Melhorias para FAQ */
-.faq-question {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  text-align: left;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.faq-question:hover {
-  background-color: #e9ecef;
-}
-
-.faq-question i, 
-.faq-question svg {
-  transition: transform 0.3s ease;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-.faq-question.active i,
-.faq-question.active svg {
-  transform: rotate(180deg);
-}
-
-.faq-answer {
-  padding: 1rem;
-  border: 1px solid #e9ecef;
-  border-top: none;
-  border-radius: 0 0 0.5rem 0.5rem;
-  margin-top: -0.5rem;
-  margin-bottom: 1rem;
-  display: none;
-  background-color: #fff;
-}
-
-.faq-answer.visible {
-  display: block;
-}
-
-/* Estilos para outros componentes de acordeão que possam existir */
-.accordion-item {
-  margin-bottom: 1rem;
-}
-
-.accordion-header {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-}
-
-.accordion-content {
-  padding: 1rem;
-  border: 1px solid #e9ecef;
-  border-top: none;
-  border-radius: 0 0 0.5rem 0.5rem;
-  background-color: #fff;
-}
-
-/* Garantir que imagens sejam corretamente exibidas */
-img {
-  max-width: 100%;
-  height: auto;
-  object-fit: cover;
-  border-radius: 0.25rem;
-  display: block;
-  margin: 0 auto;
-}
-
-img[src^="http"],
-img[src^="/"] {
-  display: block;
-}
-
-img:not([src]),
-img[src=""],
-img[src="#"],
-img[alt="placeholder"] {
-  display: none;
-}
-
-/* Melhorar estilo geral de texto */
-body {
-  font-family: 'Montserrat', 'Poppins', sans-serif;
-  line-height: 1.7;
-  color: #333;
-  font-size: 16px;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  margin-bottom: 1.5rem;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-}
-
-h1 {
-  font-size: 2.5rem;
-  font-weight: 800;
-}
-
-h2 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 2rem;
-}
-
-h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-p {
-  margin-bottom: 1.5rem;
-}
-
-strong, b {
-  font-weight: 700;
-}
-
-.btn {
-  padding: 0.8rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  display: inline-block;
-  text-decoration: none;
-  text-align: center;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.btn-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-`;
-
-    // Melhorar o JavaScript para o FAQ e correção de imagens
-    const enhancedJS = js + `
-// Garante que o script para FAQ funcione corretamente
-document.addEventListener('DOMContentLoaded', function() {
-  // Gerenciar botões de FAQ
-  const faqButtons = document.querySelectorAll('.faq-question');
-  
-  faqButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      // Toggle classe active no botão
-      this.classList.toggle('active');
+    let docType = '<!DOCTYPE html>\n';
+    
+    // Verificar se o HTML já tem doctype
+    if (html.trim().toLowerCase().startsWith('<!doctype')) {
+      docType = '';
+    }
+    
+    // Verificar se o HTML fornecido já tem a estrutura completa
+    if (html.includes('<html') && html.includes('</html>')) {
+      // Extrair partes do HTML para inserir CSS e JS
+      const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
       
-      // Encontrar o elemento de resposta correspondente
-      const answer = this.nextElementSibling;
-      if (answer && (answer.classList.contains('faq-answer') || answer.classList.contains('accordion-content'))) {
-        answer.classList.toggle('visible');
+      if (headMatch && bodyMatch) {
+        let headContent = headMatch[1];
+        let bodyContent = bodyMatch[1];
         
-        // Se não tem a classe visible, usar max-height para animação
-        if (answer.classList.contains('accordion-content')) {
-          if (answer.style.maxHeight) {
-            answer.style.maxHeight = null;
-          } else {
-            answer.style.maxHeight = answer.scrollHeight + "px";
+        // Verificar se o head já tem as fontes e font-awesome
+        const hasFontAwesome = headContent.includes('font-awesome') || headContent.includes('fontawesome');
+        const hasGoogleFonts = headContent.includes('fonts.googleapis.com');
+        
+        // Adicionar recursos que estão faltando no head
+        let additionalHeadContent = '';
+        
+        if (!hasGoogleFonts) {
+          additionalHeadContent += `
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;900&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+        }
+        
+        if (!hasFontAwesome) {
+          additionalHeadContent += `
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">`;
+        }
+        
+        // Substitui o conteúdo do head e body
+        let newHTML = html;
+        
+        // Adicionar conteúdo adicional ao head
+        if (additionalHeadContent) {
+          newHTML = newHTML.replace(/<\/head>/i, `${additionalHeadContent}\n</head>`);
+        }
+        
+        // Adicionar estilos CSS
+        if (css && css.trim()) {
+          if (newHTML.includes('</style>')) {
+            // Se já existe uma tag style, adicionar nosso CSS a ela
+            newHTML = newHTML.replace(/<\/style>/i, `${css}\n</style>`);
+      } else {
+            // Senão, criar uma nova tag style
+            newHTML = newHTML.replace(/<\/head>/i, `<style>\n${css}\n</style>\n</head>`);
           }
         }
-      }
-    });
-  });
-  
-  // Gerenciar também accordions padrão
-  const accordionHeaders = document.querySelectorAll('.accordion-header');
-  
-  accordionHeaders.forEach(header => {
-    header.addEventListener('click', function() {
-      // Toggle classe active no header
-      this.classList.toggle('active');
-      
-      // Encontrar o conteúdo correspondente
-      const content = this.nextElementSibling;
-      if (content && content.classList.contains('accordion-content')) {
-        if (content.style.maxHeight) {
-          content.style.maxHeight = null;
-        } else {
-          content.style.maxHeight = content.scrollHeight + "px";
+        
+        // Adicionar JavaScript
+        if (js && js.trim()) {
+          if (newHTML.includes('</script>') && newHTML.includes('<script>')) {
+            // Se já existe uma tag script, adicionar nosso JS a ela
+            // Encontrar o último script no documento
+            const lastScriptIndex = newHTML.lastIndexOf('</script>');
+            if (lastScriptIndex !== -1) {
+              // Encontrar o início da tag script correspondente
+              const scriptStartIndex = newHTML.lastIndexOf('<script', lastScriptIndex);
+              if (scriptStartIndex !== -1) {
+                // Verificar se é um script inline (sem src)
+                const scriptTagContent = newHTML.substring(scriptStartIndex, lastScriptIndex);
+                if (!scriptTagContent.includes('src=')) {
+                  // É um script inline, podemos adicionar nosso código
+                  newHTML = newHTML.substring(0, lastScriptIndex) + js + '\n' + newHTML.substring(lastScriptIndex);
+                } else {
+                  // É um script externo, adicionar um novo script após ele
+                  newHTML = newHTML.replace('</body>', `<script>\n${js}\n</script>\n</body>`);
+                }
+              }
+            }
+          } else {
+            // Senão, criar uma nova tag script
+            newHTML = newHTML.replace('</body>', `<script>\n${js}\n</script>\n</body>`);
+          }
         }
+        
+        return docType + newHTML;
       }
-    });
-  });
-  
-  // Verificar e corrigir URLs de imagens quebradas
-  const images = document.querySelectorAll('img');
-  const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150"%3E%3Crect fill="%23f0f0f0" width="300" height="150"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="30" dy=".3em" text-anchor="middle" x="150" y="75"%3EImagem%3C/text%3E%3C/svg%3E';
-  
-  images.forEach(img => {
-    // Substituir imagem quebrada por placeholder
-    img.onerror = function() {
-      this.src = placeholderImage;
-      this.style.maxWidth = '300px';
-      this.style.maxHeight = '150px';
-    };
-    
-    // Se a imagem não tem src ou tem src inválida, usar placeholder
-    if (!img.getAttribute('src') || 
-        img.getAttribute('src') === '#' || 
-        img.getAttribute('src') === '' ||
-        img.getAttribute('src').includes('placeholder.com')) {
-      img.src = placeholderImage;
-      img.style.maxWidth = '300px';
-      img.style.maxHeight = '150px';
     }
-  });
-  
-  // Animar elementos ao scroll
-  const animateElements = document.querySelectorAll('.animate-on-scroll');
-  
-  function checkScroll() {
-    animateElements.forEach(element => {
-      const elementTop = element.getBoundingClientRect().top;
-      const elementVisible = 150;
-      
-      if (elementTop < window.innerHeight - elementVisible) {
-        element.classList.add('animated');
-      }
-    });
-  }
-  
-  // Verificar elementos no carregamento e ao scroll
-  if (animateElements.length > 0) {
-    checkScroll();
-    window.addEventListener('scroll', checkScroll);
-  }
-});
-`;
-
-    // Construir o HTML completo com o CSS e JS aprimorados
-    return `<!DOCTYPE html>
-<html lang="pt-BR">
+    
+    // Se o HTML não tiver a estrutura completa, construir o HTML do zero
+    let styleTag = css ? `<style>\n${css}\n</style>` : '';
+    let scriptTag = js ? `<script>\n${js}\n</script>` : '';
+    
+    // Verificar se o HTML contém conteúdo relevante, caso contrário, usar um fallback
+    let bodyContent = html.trim();
+    if (!bodyContent || bodyContent.length < 100) {
+      bodyContent = `
+      <div class="container">
+        <h1>Landing Page</h1>
+        <p>O conteúdo da landing page não pôde ser gerado corretamente.</p>
+      </div>`;
+    }
+    
+    // Construir o HTML completo
+    return `${docType}<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Landing Page</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <style>
-${enhancedCSS}
-  </style>
+  ${defaultHeadContent}
+  ${styleTag}
 </head>
 <body>
-  ${html}
-  <script>
-${enhancedJS}
-  </script>
+  ${bodyContent}
+  ${scriptTag}
 </body>
 </html>`;
-    }
-  catch (error) {
+  } catch (error) {
     console.error("Erro ao criar HTML unificado:", error);
     
-    // Em caso de erro, retornar um HTML básico com o conteúdo original
+    // HTML de fallback em caso de erro
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Landing Page</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  ${defaultHeadContent}
   <style>
-${css}
+    body { font-family: 'Montserrat', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
+    .container { max-width: 800px; margin: 50px auto; padding: 30px; border: 1px solid #ddd; border-radius: 8px; }
+    h1 { color: #e74c3c; }
   </style>
 </head>
 <body>
-  ${html}
-  <script>
-${js}
-  </script>
+  <div class="container">
+    <h1>Erro ao gerar a landing page</h1>
+    <p>Ocorreu um erro ao processar o conteúdo da landing page. Por favor, tente novamente.</p>
+    <p><small>Detalhes técnicos: ${error instanceof Error ? error.message : 'Erro desconhecido'}</small></p>
+  </div>
 </body>
 </html>`;
   }
@@ -1623,13 +1720,17 @@ ${js}
 
 // Rota principal para geração de landing pages
 export async function POST(request: Request) {
-  try {
-    // Início do tempo de execução
-    const startTime = performance.now();
+  // Início do tempo de execução
+  const startTime = performance.now();
   
-    let niche, product, benefits, targetAudience, callToAction, testimonials, pricing, style, separateFiles;
-    let productImageUrl = null;
-    
+  let niche, product, benefits, targetAudience, callToAction, testimonials, pricing, style, separateFiles;
+  let productImageUrl = null;
+  let userId = '';
+  
+  // Variáveis para armazenar valores sanitizados
+  let safeNiche = '', safeProduct = '', safeStyle = '', safeBenefits: string[] = [], safeTargetAudience = '', safeCallToAction = '', safePricing = '';
+  
+  try {
     // Verificar o tipo de conteúdo da requisição
     const contentType = request.headers.get('content-type') || '';
     
@@ -1640,263 +1741,148 @@ export async function POST(request: Request) {
       // Obter os dados JSON da requisição
       const jsonData = formData.get('data');
       if (!jsonData || typeof jsonData !== 'string') {
-        throw new Error('Dados JSON não encontrados na requisição');
+        throw new Error("Dados JSON ausentes ou inválidos");
       }
       
       const parsedData = JSON.parse(jsonData);
       
-      // Extrair os dados da requisição
-      niche = parsedData.niche;
-      product = parsedData.product;
-      benefits = parsedData.benefits;
-      targetAudience = parsedData.targetAudience;
-      callToAction = parsedData.callToAction;
-      testimonials = parsedData.testimonials;
-      pricing = parsedData.pricing;
-      style = parsedData.style;
-      separateFiles = parsedData.separateFiles;
+      // Extrair os campos do formulário
+      niche = parsedData.niche || '';
+      product = parsedData.product || '';
+      benefits = parsedData.benefits || [];
+      targetAudience = parsedData.targetAudience || '';
+      callToAction = parsedData.callToAction || 'Comprar Agora';
+      testimonials = parsedData.testimonials || [];
+      pricing = parsedData.pricing || '';
+      style = parsedData.style || 'vendas';
+      separateFiles = parsedData.separateFiles || false;
+      userId = parsedData.userId || '';
       
-      // Processar a imagem do produto, se houver
+      // Processar o upload da imagem, se houver
       const productImage = formData.get('productImage');
-      if (productImage && productImage instanceof Blob) {
+      if (productImage && productImage instanceof File && productImage.size > 0) {
         try {
-          // Criar um diretório para armazenar a imagem (se não existir)
-          const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+          const buffer = Buffer.from(await productImage.arrayBuffer());
+          const fileName = `product-${Date.now()}-${Math.round(Math.random() * 10000)}.${productImage.name.split('.').pop()}`;
+          const uploadDir = path.join(process.cwd(), 'public', 'uploads');
           
-          // Verificar se o diretório existe, senão criar
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-            console.log(`Diretório de uploads criado: ${uploadsDir}`);
+          // Criar o diretório de upload se não existir
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
           }
           
-          // Gerar um nome único para o arquivo
-          const fileName = `product-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.jpg`;
-          const filePath = path.join(uploadsDir, fileName);
-          
-          // Converter Blob para ArrayBuffer
-          const buffer = Buffer.from(await productImage.arrayBuffer());
-          
-          // Gravar o arquivo
+          const filePath = path.join(uploadDir, fileName);
           await writeFile(filePath, buffer);
           
-          // URL para acessar a imagem
           productImageUrl = `/uploads/${fileName}`;
-          
-          console.log(`Imagem do produto salva em: ${filePath}`);
-        } catch (error) {
-          console.error('Erro ao processar imagem do produto:', error);
+          console.log(`Imagem salva em: ${filePath}`);
+        } catch (uploadError) {
+          console.error("Erro ao processar o upload da imagem:", uploadError);
+          // Continuar sem a imagem em caso de erro
         }
       }
     } else {
-      // Caso seja application/json
-      const requestData = await request.json();
+      // Requisição JSON padrão
+      const data = await request.json();
       
-      // Extrair os dados da requisição
-      niche = requestData.niche;
-      product = requestData.product;
-      benefits = requestData.benefits;
-      targetAudience = requestData.targetAudience;
-      callToAction = requestData.callToAction;
-      testimonials = requestData.testimonials;
-      pricing = requestData.pricing;
-      style = requestData.style;
-      separateFiles = requestData.separateFiles;
+      niche = data.niche || '';
+      product = data.product || '';
+      benefits = data.benefits || [];
+      targetAudience = data.targetAudience || '';
+      callToAction = data.callToAction || 'Comprar Agora';
+      testimonials = data.testimonials || [];
+      pricing = data.pricing || '';
+      style = data.style || 'vendas';
+      separateFiles = data.separateFiles || false;
+      userId = data.userId || '';
+      
+      // Se houver URL de imagem no JSON
+      if (data.productImageUrl) {
+        productImageUrl = data.productImageUrl;
+      }
     }
-
-    console.log("Recebida solicitação de nova landing page:", {
-      niche: niche || "[não informado]",
-      product: product || "[não informado]",
-      style: style || "moderno",
-      benefits: benefits ? benefits.length : 0,
-      separateFiles: separateFiles === true,
-      hasProductImage: Boolean(productImageUrl)
+    
+    // Sanitizar entradas
+    safeNiche = niche.trim();
+    safeProduct = product.trim();
+    safeStyle = style.trim().toLowerCase();
+    safeBenefits = benefits.map((b: string) => b.trim()).filter((b: string) => b.length > 0);
+    safeTargetAudience = targetAudience.trim();
+    safeCallToAction = callToAction.trim();
+    safePricing = pricing.trim();
+    
+    // Validar dados mínimos
+    if (!safeNiche || !safeProduct) {
+      return new NextResponse("Nicho e produto são campos obrigatórios", { status: 400 });
+    }
+    
+    console.log("Gerando landing page para:", {
+      niche: safeNiche,
+      product: safeProduct,
+      style: safeStyle,
+      benefits: safeBenefits.length
     });
-
-    if (!process.env.DEEPSEEK_API_KEY) {
-      throw new Error("API key não configurada");
-    }
-
-    // Valores padrão se os campos estiverem indefinidos
-    const safeNiche = niche || "Produto Digital";
-    const safeProduct = product || "Produto Incrível";
-    const safeStyle = style || "moderno";
-    const safeBenefits = benefits && benefits.length > 0 ? benefits : ["Qualidade superior", "Resultados comprovados", "Satisfação garantida"];
-    const safeTargetAudience = targetAudience || "Pessoas interessadas em melhorar sua qualidade de vida";
-    const safeCallToAction = callToAction || "Comprar Agora";
-    const safePricing = pricing || "R$ 197,00";
-    const includeTestimonials = testimonials !== false;
-
-    // Construir prompt com contexto detalhado e melhor diferenciação entre estilos
-    const promptContext = `
-Você é um desenvolvedor web sênior especializado na criação de landing pages profissionais de alta conversão, com habilidades avançadas em HTML5, CSS3 e JavaScript moderno. Você cria designs visuais impressionantes e código funcional específico para o nicho e produto solicitados.
-
-TAREFA:
-Crie uma landing page completa e altamente persuasiva para o seguinte produto/serviço:
-
-- Nicho: "${safeNiche}"
-- Nome do produto/serviço: "${safeProduct}"
-- Público-alvo: "${safeTargetAudience}"
-- Call to Action: "${safeCallToAction}"
-- Preço/Oferta: "${safePricing}"
-- Estilo visual: "${safeStyle}"
-- Benefícios principais:
-${safeBenefits.map((b: string) => `  * ${b}`).join('\n')}
-${productImageUrl ? `- Imagem do produto: "${productImageUrl}" (use esta URL para a imagem principal do produto)` : ''}
-
-IMPORTANTE - ENTREGUE O CÓDIGO COMO SOLICITADO:
-${separateFiles ? 
-`Entregue em TRÊS PARTES SEPARADAS:
-1. HTML (use a tag \`\`\`html no início e \`\`\` no final)
-2. CSS (use a tag \`\`\`css no início e \`\`\` no final)
-3. JavaScript (use a tag \`\`\`javascript no início e \`\`\` no final)` 
-: 
-`Entregue como UM DOCUMENTO HTML COMPLETO com CSS no <style> e JS no <script>`}
-
-DIRETRIZES PARA O HTML:
-- Utilize HTML5 semântico e acessível (schema.org para SEO)
-- A página deve focar especificamente no produto "${safeProduct}" para o nicho "${safeNiche}"
-- TODOS os textos devem ser personalizados para o produto em questão, não use textos genéricos
-- A página deve incluir: header com navegação, seção hero atraente, lista de benefícios com ícones, ${includeTestimonials ? 'seção de depoimentos,' : ''} seção "como funciona", garantia/credibilidade, CTA principal (usando "${safeCallToAction}"), FAQs e footer
-- Crie botões de CTA chamativos com senso de urgência/escassez
-${includeTestimonials ? '- Inclua pelo menos 3 depoimentos fictícios persuasivos com nomes, fotos e avaliações' : ''}
-- Adicione contador regressivo para FOMO (medo de perder)
-- Use microcopy persuasivo direcionado ao público "${safeTargetAudience}"
-- Incorpore ícones do Font Awesome e pelo menos uma fonte do Google
-- Garanta que o HTML seja estruturado para receber os estilos CSS
-- Destaque claramente o preço/oferta: "${safePricing}"
-${productImageUrl ? `- Utilize a imagem do produto em posição de destaque (URL: "${productImageUrl}")` : '- Adicione marcadores para imagens de produto fictícias'}
-
-DIFERENCIAIS VISUAIS POR ESTILO:
-${safeStyle === 'minimalista' ? `
-ESTILO MINIMALISTA:
-- Paleta de cores: Preto (#111), branco (#fff) e cinza claro (#f8f8f8) com acento sutil em APENAS UMA cor
-- Tipografia: Fonte sans-serif minimalista como Inter ou Helvetica Neue
-- Layout: Muito espaço em branco com poucos elementos por seção
-- Elementos visuais: Ícones simples de linha fina, sem gradientes ou sombras fortes
-- Botões: Botões com bordas finas e sem preenchimento ou com preenchimento sutil
-- Imagens: Imagens com tratamento monocromático ou duotone discreto
-- Design: Simplicidade extrema, alinhamentos precisos, sem elementos decorativos
-- JavaScript: Animações sutis e minimalistas apenas em hovers` : ''}
-
-${safeStyle === 'moderno' ? `
-ESTILO MODERNO:
-- Paleta de cores: Gradientes sutis de azul (#3B82F6 a #2563EB) com toques de roxo (#8B5CF6)
-- Tipografia: Combinação de fontes contemporâneas com bom contraste (ex: Montserrat e Poppins)
-- Layout: Seções assimétricas, sobreposições de elementos e uso de formas geométricas
-- Elementos visuais: Cards com sombras expressivas, gradientes suaves, ícones bi-color
-- Botões: Botões com gradiente e efeitos de hover refinados
-- Imagens: Imagens com tratamento contemporâneo, com filtros e efeitos de camadas
-- Design: Elementos flutuantes, globos ou partículas de fundo, layouts sobrepostos
-- JavaScript: Animações de scroll suaves e efeitos parallax` : ''}
-
-${safeStyle === 'vendas' ? `
-ESTILO VENDAS:
-- Paleta de cores: Contrastes fortes com vermelho (#DC2626) e amarelo (#FBBF24) para elementos de urgência
-- Tipografia: Tipografia impactante com headlines grandes e em negrito
-- Layout: Fluxo vertical contínuo direcionado para múltiplos CTAs
-- Elementos visuais: Selos de garantia, badges "oferta limitada", ícones de destaque
-- Botões: CTAs grandes, pulsantes, com cores vibrantes e texto persuasivo
-- Imagens: Imagens de produto em destaque com badges promocionais
-- Design: Elementos que criam urgência, countdown timers, barras de progresso
-- JavaScript: Animações chamativas para CTAs, popup de saída, contador regressivo` : ''}
-
-${safeStyle === 'corporativo' ? `
-ESTILO CORPORATIVO:
-- Paleta de cores: Azul marinho (#0F172A), azul médio (#1E40AF) e cinza claro com toques de azul claro
-- Tipografia: Fontes serifa para títulos e sans-serif para corpo de texto
-- Layout: Layout estruturado, simétrico e organizado em grid bem definido
-- Elementos visuais: Ícones flat em tom azul, gráficos e ilustrações técnicas
-- Botões: Botões sólidos com cantos levemente arredondados e hover sutil
-- Imagens: Imagens corporativas de pessoas em ambiente profissional
-- Design: Elementos que transmitem confiabilidade, estabilidade e profissionalismo
-- JavaScript: Animações discretas e profissionais, tabs e accordions para organizar conteúdo` : ''}
-
-${safeStyle === 'startup' ? `
-ESTILO STARTUP:
-- Paleta de cores: Roxo vibrante (#7E22CE), rosa (#EC4899) e azul elétrico com gradientes
-- Tipografia: Combinação de fontes modernas e arrojadas (ex: Gilroy, Circular)
-- Layout: Layout com elementos sobrepostos, ângulos dinâmicos e assimetria
-- Elementos visuais: Ilustrações vetoriais coloridas ou 3D, ícones modernos
-- Botões: Botões com gradientes vibrantes, sombras coloridas e formas únicas
-- Imagens: Imagens com tratamentos coloridos e elementos gráficos sobrepostos
-- Design: Formas geométricas no background, padrões abstratos, curvas e ondas
-- JavaScript: Animações criativas ao scrollar, micro-interações em elementos de UI` : ''}
-
-${safeStyle === 'ecommerce' ? `
-ESTILO E-COMMERCE:
-- Paleta de cores: Azul (#0369A1), verde (#059669) com toques de laranja (#FB923C) para elementos de ação
-- Tipografia: Tipografia clean e legível ideal para lojas online
-- Layout: Grid de produtos bem organizado com cards de produto em destaque
-- Elementos visuais: Badges de oferta, etiquetas de desconto, ratings com estrelas
-- Botões: Botões de "adicionar ao carrinho" e "comprar" em destaque
-- Imagens: Imagens de produto em alta qualidade com zoom ao passar o mouse
-- Design: Elementos familiares de e-commerce como minicart, filtros, e indicadores de estoque
-- JavaScript: Preview de produtos em hover, slider de produtos em destaque` : ''}
-
-DIRETRIZES PARA O CSS:
-- A estética DEVE seguir RIGOROSAMENTE o estilo "${safeStyle}" com cores, tipografia e layout adequados
-- Utilize CSS moderno (flexbox, grid, custom properties, efeitos sutis)
-- Implemente animações sutis e microinterações (hover, transições)
-- Adicione media queries para responsividade completa (mobile, tablet, desktop)
-- Crie visual profissional com sombras, gradientes e estilos contemporâneos
-- Trabalhe com paleta de cores harmoniosa e tipografia refinada
-- Utilize box-shadows sutis e bordas arredondadas para elementos principais
-- Implemente layouts com proporções áureas e hierarquia visual clara
-- Design responsivo obrigatório
-
-DIRETRIZES PARA O JAVASCRIPT:
-- Implemente contador regressivo funcional (não apenas visual)
-- Adicione comportamentos interativos (accordion para FAQs, scrolling suave)
-- Garanta carregar e funcionar sem plugins externos
-- Inclua animações ativadas por scroll para elementos entrando na viewport
-- Garanta que todas funções sejam executadas após DOMContentLoaded
-- Adicione microinterações ao passar o mouse sobre botões e cards
-- Implemente validação de formulários se incluir formulário de contato
-- CADA ESTILO deve ter comportamentos de JavaScript ESPECÍFICOS e COERENTES com sua proposta visual
-
-NÃO INCLUA:
-- NENHUMA referência a arquivos externos (CSS, JS) - todo o código deve estar inline
-- Placeholder de textos - produza texto real persuasivo para todos componentes
-- NÃO use textos genéricos ou Lorem Ipsum - todo texto deve ser específico para "${safeProduct}" e "${safeNiche}"
-
-LEMBRE-SE: 
-- O conteúdo da landing page deve ser ESPECÍFICO para o produto "${safeProduct}" e não genérico
-- A página DEVE parecer profissional e pronta para uso, como se tivesse sido criada por um designer e desenvolvedor front-end profissional.
-- Todo o CSS e JavaScript DEVE estar completo e funcional para operar imediatamente.
-- ACENTUE as diferenças visuais entre os estilos - cada estilo deve ser CLARAMENTE distinto dos demais.
-`;
-
-    console.log("Enviando prompt para a API...");
-
-    // Chamar a API DeepSeek para gerar o HTML com CSS e JS
+    
     try {
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-        method: 'POST',
+      // Montar o prompt para a API com instruções claras
+      const template = getTemplateByStyle(safeStyle);
+      const prompt = `Você é um especialista em criação de landing pages para ${safeNiche}. 
+      Crie uma landing page de alta conversão para promover o produto: "${safeProduct}". 
+      
+      Detalhes do produto:
+      - Nicho: ${safeNiche}
+      - Público-alvo: ${safeTargetAudience}
+      - Principais benefícios: ${safeBenefits.join(', ')}
+      - Call to action principal: ${safeCallToAction}
+      - Preço/oferta: ${safePricing}
+      
+      Requisitos da página:
+      1. Use o estilo "${safeStyle}" para a landing page.
+      2. Crie uma página HTML completa com tags head e body.
+      3. Inclua HTML semântico e responsivo.
+      4. Adicione CSS detalhado e personalizado para o nicho específico.
+      5. Inclua JavaScript para melhorar interatividade (FAQ, contadores, formulários).
+      6. Adicione seções: hero, benefícios, como funciona, depoimentos, FAQ, garantia e CTA final.
+      7. Use Font Awesome para ícones via CDN.
+      8. Use a fonte Montserrat do Google Fonts.
+      9. Garanta que os estilos dos botões FAQ funcionem corretamente.
+      10. Adicione código JavaScript para expandir/contrair FAQ automaticamente.
+      
+      Formato esperado: Estruture sua resposta com os arquivos separados, indicados por delimitadores:
+      
+      \`\`\`html
+      <!-- Código HTML completo aqui -->
+      \`\`\`
+      
+      \`\`\`css
+      /* CSS completo aqui */
+      \`\`\`
+      
+      \`\`\`javascript
+      // JavaScript completo aqui
+      \`\`\`
+      
+      Certifique-se que o JavaScript detecta automaticamente como o FAQ está estruturado (botões, divs ou dl/dt/dd) e inicializa o comportamento correto.`;
+      
+      // Chamar a API de geração de conteúdo
+      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'deepseek-chat',
+          model: "deepseek-chat",
           messages: [
-            { 
-              role: 'system', 
-              content: 'Você é um desenvolvedor web sênior especializado na criação de landing pages profissionais de alta conversão, com habilidades avançadas em HTML5, CSS3 e JavaScript moderno. Você cria designs visuais impressionantes e código funcional específico para o nicho e produto solicitados.' 
-            },
-            { 
-              role: 'user', 
-              content: promptContext 
-            }
+            { role: "user", content: prompt }
           ],
-          temperature: 0.9,
-          max_tokens: 8000,
-          top_p: 1
+          temperature: 0.7,
+          max_tokens: 4000
         })
       });
-
-      // Verificar se a resposta foi bem-sucedida
+      
       if (!response.ok) {
-        console.error("Erro na API DeepSeek:", await response.text());
+        console.error(`Erro na API: ${response.status} ${response.statusText}`);
         throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
       }
 
@@ -1934,82 +1920,55 @@ LEMBRE-SE:
         jsLength: js.length
       });
 
-      // Combinar os componentes em um único HTML
-      let landingPageHTML;
-      let resultResponse;
-
       // Se o usuário solicitou arquivos separados, retornar os componentes
       if (separateFiles) {
-        landingPageHTML = createUnifiedHTML(html, css, js);
+        const combinedHTML = createUnifiedHTML(html, css, js);
         
-        resultResponse = NextResponse.json({
+        return NextResponse.json({
           separatedFiles: {
             html: html,
             css: css,
             js: js
           },
-          code: landingPageHTML
+          code: combinedHTML
         }, { 
           status: 200 
         });
       } else {
         // Combinar os componentes em um único HTML
-        landingPageHTML = createUnifiedHTML(html, css, js);
+        const landingPageHTML = createUnifiedHTML(html, css, js);
+        
+        // Finalizar tempo de execução e registrar atividade
+        const endTime = performance.now();
+        const executionTime = ((endTime - startTime) / 1000).toFixed(2);
+        console.log(`Landing page gerada em ${executionTime}s`);
+        
+        // Registrar a criação da landing page (sem depender de MongoDB)
+        try {
+          if (userId) {
+            console.log('Atividade de landing page registrada para usuário:', userId, {
+              tipo: 'landing_page',
+              produto: safeProduct,
+              nicho: safeNiche,
+              estilo: safeStyle,
+              tempo: executionTime
+            });
+          }
+        } catch (activityError) {
+          console.error('Erro ao registrar atividade:', activityError);
+          // Não interromper o fluxo se o registro falhar
+        }
         
         // Retornar a página HTML completa
-        resultResponse = new NextResponse(landingPageHTML, {
+        return new NextResponse(landingPageHTML, {
           status: 200,
           headers: {
             'Content-Type': 'text/html; charset=utf-8'
           }
         });
       }
-
-      // Salvar a landing page como criação do usuário
-      try {
-        const session = await getServerSession(authOptions);
-        
-        if (session?.user?.id) {
-          // Criar um título para a landing page
-          const title = `Landing Page - ${safeProduct} (${safeNiche})`;
-          
-          // Garantir que o conteúdo esteja no formato esperado para LandingPageContent
-          const landingPageContent = {
-            title: safeProduct,
-            description: safeNiche,
-            style: safeStyle,
-            targetAudience: safeTargetAudience,
-            // Incluir seções básicas para garantir compatibilidade com o modelo
-            sections: [
-              {
-                type: 'hero',
-                title: safeProduct,
-                content: `Landing page para ${safeProduct} focada em ${safeNiche}`
-              }
-            ],
-            result: landingPageHTML
-          };
-          
-          // Salvar a criação no banco de dados
-          await saveUserCreation(
-            session.user.id,
-            title,
-            'landing-page',
-            landingPageContent
-          );
-          
-          console.log("Landing page salva com sucesso como criação do usuário");
-        } else {
-          console.log("Usuário não autenticado, landing page não será salva como criação");
-        }
-      } catch (error) {
-        console.error("Erro ao salvar landing page como criação do usuário:", error);
-        // Não bloquear a resposta em caso de erro ao salvar
-      }
-      
-      return resultResponse;
-    } catch (error) {
-      console.error("Erro ao chamar a API DeepSeek:", error);
+    } catch (apiError) {
+      console.error("Erro ao chamar a API DeepSeek:", apiError);
       return createFallbackLandingPage(safeNiche, safeProduct, safeStyle, safeBenefits, safeTargetAudience, safeCallToAction, safePricing, productImageUrl);
     }
   } catch (error) {
@@ -2038,7 +1997,7 @@ function createFallbackLandingPage(niche: string, product: string, style: string
     <title>${product} - ${niche}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
       ${getDefaultCSS(style)}
@@ -2118,45 +2077,6 @@ function createFallbackLandingPage(niche: string, product: string, style: string
     </script>
 </body>
 </html>`;
-
-  // Registrar a landing page como criação do usuário
-  (async () => {
-    try {
-      const session = await getServerSession(authOptions);
-      
-      if (session?.user?.id) {
-        const title = `Landing Page - ${product} (${niche})`;
-        
-        // Garantir que o conteúdo esteja no formato esperado para LandingPageContent
-        const landingPageContent = {
-          title: product,
-          description: niche,
-          style: style,
-          targetAudience: targetAudience,
-          sections: [
-            {
-              type: 'hero',
-              title: product,
-              content: `Landing page para ${product} focada em ${niche}`
-            }
-          ],
-          result: fallbackHTML
-        };
-        
-        // Salvar a criação no banco de dados
-        await saveUserCreation(
-          session.user.id,
-          title,
-          'landing-page',
-          landingPageContent
-        );
-        
-        console.log("Landing page de fallback salva nas atividades recentes");
-      }
-    } catch (error) {
-      console.error("Erro ao salvar landing page de fallback:", error);
-    }
-  })();
 
   // Retornar a página HTML de fallback
   return new NextResponse(fallbackHTML, {

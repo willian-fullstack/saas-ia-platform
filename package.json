@@ -30,6 +30,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.10.5",
     "gsap": "^3.13.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.501.0",
     "mercadopago": "^2.5.0",
     "mongoose": "^8.13.2",

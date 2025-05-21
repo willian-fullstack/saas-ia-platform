@@ -1,170 +1,122 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  Loader2,
-  Layout,
-  Copy,
-  Code,
-  Eye,
-  Download,
-  Image as ImageIcon,
-  X,
-  ExternalLink
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { useState, useEffect, useRef } from "react";
 import { Loading } from "@/components/ui/loading";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Smartphone, Monitor, Download, Copy, Eye, Code, Paintbrush, FileCog, Info, CheckCircle, Upload } from "lucide-react";
+import { LANDING_PAGE_STYLES } from "@/templates/landing-page-templates";
+
+// Componente simples de loading dots
+function LoadingDots() {
+  return (
+    <div className="flex items-center space-x-1">
+      <div className="h-1.5 w-1.5 animate-bounce bg-white rounded-full" />
+      <div className="h-1.5 w-1.5 animate-bounce delay-75 bg-white rounded-full" />
+      <div className="h-1.5 w-1.5 animate-bounce delay-150 bg-white rounded-full" />
+    </div>
+  );
+}
+
+// Componente de loading com mensagem
+function LoadingWithMessage({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <div className="mb-4">
+        <Loading />
+      </div>
+      <p className="text-gray-700">{message}</p>
+    </div>
+  );
+}
+
+interface FormData {
+  niche: string;
+  product: string;
+  benefits: string[];
+  targetAudience: string;
+  callToAction: string;
+  pricing: string;
+  style: string;
+  testimonials: boolean;
+  separateFiles: boolean;
+  productImage?: File | null;
+  productImagePreview?: string;
+}
 
 export default function LandingPagesPage() {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const [loadingDots, setLoadingDots] = useState("");
-  const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
-  const previewRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({
+  // Estados para o formulário
+  const [formData, setFormData] = useState<FormData>({
     niche: "",
     product: "",
     benefits: ["", "", ""],
     targetAudience: "",
     callToAction: "",
-    testimonials: true,
     pricing: "",
-    style: "minimalista"
+    style: "moderno",
+    testimonials: true,
+    separateFiles: false,
+    productImage: null,
+    productImagePreview: undefined
   });
-  const [images, setImages] = useState<{file: File, preview: string}[]>([]);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Estados para o processo de geração
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingDots, setLoadingDots] = useState("");
   
-  let timeoutId: NodeJS.Timeout | null = null;
-  let controller: AbortController | null = null;
+  // Estados para os códigos gerados
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [htmlCode, setHtmlCode] = useState("");
+  const [cssCode, setCssCode] = useState("");
+  const [jsCode, setJsCode] = useState("");
+  const [separatedFiles, setSeparatedFiles] = useState(false);
+  const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
+  const [zipDownloadUrl, setZipDownloadUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Efeito para mostrar mensagens durante o carregamento
-  useEffect(() => {
-    if (loading) {
-      const messages = [
-        "Analisando o nicho...",
-        "Definindo o layout ideal...",
-        "Estruturando o conteúdo...",
-        "Criando elementos visuais...",
-        "Otimizando para conversão...",
-        "Aplicando design responsivo...",
-        "Finalizando a landing page..."
-      ];
-      
-      let currentMessageIndex = 0;
-      const messageInterval = setInterval(() => {
-        if (currentMessageIndex < messages.length) {
-          setLoadingMessage(messages[currentMessageIndex]);
-          currentMessageIndex++;
-        }
-      }, 2000);
-      
-      // Animação de pontos
-      const dotsInterval = setInterval(() => {
-        setLoadingDots(prev => {
-          if (prev.length >= 3) return "";
-          return prev + ".";
-        });
-      }, 500);
-      
-      return () => {
-        clearInterval(messageInterval);
-        clearInterval(dotsInterval);
-      };
-    }
-  }, [loading]);
+  // Referência para o iframe de visualização
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Efeito para renderizar o HTML quando o código muda ou a aba ativa é alterada
-  useEffect(() => {
-    if (result && activeTab === "preview" && previewRef.current) {
-      try {
-        // Definir o HTML diretamente
-        previewRef.current.innerHTML = result;
-        
-        // Adicionar sandbox CSS para evitar que CSS da página afete a preview
-        const style = document.createElement('style');
-        style.textContent = `
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { overflow-x: hidden; }
-        `;
-        
-        // Adicionar estilo ao início da preview
-        if (previewRef.current.firstChild) {
-          previewRef.current.insertBefore(style, previewRef.current.firstChild);
-        } else {
-          previewRef.current.appendChild(style);
-        }
-        
-        // Ajustar scripts se existirem (para segurança)
-        const scripts = previewRef.current.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => {
-            newScript.setAttribute(attr.name, attr.value);
-          });
-          newScript.textContent = oldScript.textContent;
-          oldScript.parentNode?.replaceChild(newScript, oldScript);
-        });
-        
-        console.log('Preview renderizada com sucesso');
-      } catch (error) {
-        console.error('Erro ao renderizar preview:', error);
-        // Fallback para visualização básica
-        previewRef.current.innerHTML = `
-          <div style="padding: 20px; color: red;">
-            Erro ao renderizar a preview. Verifique o código HTML gerado.
-            <pre style="margin-top: 10px; background: #f0f0f0; padding: 10px; overflow: auto; max-height: 300px;">${
-              result.substring(0, 500) + '...'
-            }</pre>
-          </div>
-        `;
-      }
-    }
-  }, [result, activeTab]);
-
-  // Limpar as URLs das imagens ao desmontar o componente
-  useEffect(() => {
-    return () => {
-      // Revogar as URLs de objeto criadas para as previews
-      images.forEach(img => URL.revokeObjectURL(img.preview));
-    };
-  }, [images]);
-
-  // Atualizar o estado do formulário
+  // Função para lidar com mudanças nos campos do formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    // Asserting that e.target exists (TypeScript non-null assertion)
+    const target = e.target!;
+    const name = target.name;
+    const value = target.value;
 
-  // Atualizar um benefício específico
-  const handleBenefitChange = (index: number, value: string) => {
+    // Handler específico para campos de benefícios
+    if (name && name.startsWith("benefit-")) {
+      const indexStr = name.substring(8); // "benefit-".length = 8
+      const index = parseInt(indexStr);
+      
+      if (!isNaN(index)) {
+        // Criar uma cópia do array de benefícios
     const newBenefits = [...formData.benefits];
+        // Atualizar o benefício no índice específico
     newBenefits[index] = value;
+        
+        // Atualizar o estado com o novo array
     setFormData(prev => ({
       ...prev,
       benefits: newBenefits
     }));
-  };
-
-  // Adicionar mais um campo de benefício
-  const addBenefit = () => {
-    if (formData.benefits.length < 6) {
+        
+        console.log(`Benefício ${index} atualizado para: ${value}`);
+      }
+    } else {
+      // Para todos os outros campos
       setFormData(prev => ({
         ...prev,
-        benefits: [...prev.benefits, ""]
+        [name]: value
       }));
     }
   };
 
-  // Atualizar checkbox
+  // Função para lidar com mudanças em checkboxes
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setFormData(prev => ({
@@ -173,704 +125,881 @@ export default function LandingPagesPage() {
     }));
   };
 
-  // Upload de imagens
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newImages: {file: File, preview: string}[] = [];
-      
-      Array.from(e.target.files).forEach(file => {
+  // Função para lidar com upload de imagens
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
         // Verificar se é uma imagem
         if (!file.type.startsWith('image/')) {
-          toast.error(`O arquivo ${file.name} não é uma imagem válida`);
+      toast.error("Por favor, selecione um arquivo de imagem válido.");
           return;
         }
         
-        // Limitar o tamanho a 5MB
+    // Verificar tamanho (máximo 5MB)
         if (file.size > 5 * 1024 * 1024) {
-          toast.error(`A imagem ${file.name} excede 5MB`);
+      toast.error("A imagem deve ter no máximo 5MB.");
           return;
         }
         
-        // Criar URL de preview
-        const preview = URL.createObjectURL(file);
-        newImages.push({ file, preview });
-      });
-      
-      // Adicionar novas imagens (limitando a 5 no total)
-      if (images.length + newImages.length > 5) {
-        toast.error("Limite de 5 imagens excedido");
-        newImages.slice(0, 5 - images.length).forEach(img => {
-          setImages(prev => [...prev, img]);
-        });
-      } else {
-        setImages(prev => [...prev, ...newImages]);
+    // Criar preview da imagem
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target && event.target.result) {
+        setFormData(prev => ({
+          ...prev,
+          productImage: file,
+          productImagePreview: event.target.result as string
+        }));
       }
-    }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Função para adicionar um novo benefício
+  const addBenefit = () => {
+    setFormData(prev => ({
+      ...prev,
+      benefits: [...prev.benefits, ""]
+    }));
+  };
+
+  // Função para remover um benefício
+  const removeBenefit = (index: number) => {
+    if (formData.benefits.length <= 1) return;
     
-    // Limpar o input file
-    if (e.target.value) {
-      e.target.value = '';
-    }
+    setFormData(prev => ({
+      ...prev,
+      benefits: prev.benefits.filter((_, i) => i !== index)
+    }));
   };
 
-  // Remover uma imagem 
-  const removeImage = (index: number) => {
-    // Revogar a URL do objeto para liberar memória
-    URL.revokeObjectURL(images[index].preview);
-    
-    // Remover a imagem do array
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  // Limpar URL de download quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (zipDownloadUrl) {
+        URL.revokeObjectURL(zipDownloadUrl);
+      }
+    };
+  }, [zipDownloadUrl]);
 
-  // Abrir o seletor de arquivo
-  const triggerFileInput = () => {
-    if (imageInputRef.current) {
-      imageInputRef.current.click();
-    }
-  };
-
-  // Enviar formulário
+  // Função para lidar com o envio do formulário
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validar campos obrigatórios
-    if (!formData.niche || !formData.product) {
-      toast.error("Preencha os campos obrigatórios: Nicho e Produto");
-      return;
-    }
-    
-    // Filtrar benefícios vazios
-    const filteredBenefits = formData.benefits.filter(benefit => benefit.trim() !== "");
-    
     setLoading(true);
-    setResult("");
-    setLoadingMessage("Iniciando criação da landing page...");
-    
-    // Iniciar exibição de mensagens sequenciais para melhorar experiência de usuário
-    const loadingMessages = [
-      "Analisando o nicho e produto...",
-      "Estruturando o layout da página...",
-      "Criando seções de benefícios...",
-      "Otimizando elementos visuais...",
-      "Aplicando design responsivo...",
-      "Implementando call-to-action eficaz...",
-      "Refinando estilos CSS...",
-      "Finalizando a landing page...",
-      "Quase finalizado..."
-    ];
-    
-    let messageIndex = 0;
-    const messageTimer = setInterval(() => {
-      // Atualizar mensagem a cada 15 segundos
-      if (messageIndex < loadingMessages.length) {
-        setLoadingMessage(loadingMessages[messageIndex]);
-        messageIndex++;
-      }
-    }, 15000);
+    setLoadingMessage("Preparando para gerar sua landing page");
+    setLoadingDots("");
     
     try {
-      // Limpar qualquer controlador anterior
-      if (controller) {
-        controller.abort();
+      // Iniciar o intervalo para atualizar os pontos de carregamento
+      const dotsInterval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev === "...") return "";
+          return prev + ".";
+        });
+      }, 500);
+
+      // Atualizar mensagem após alguns segundos
+      setTimeout(() => {
+        setLoadingMessage("Criando sua landing page perfeita");
+      }, 2000);
+
+      setTimeout(() => {
+        setLoadingMessage("Aplicando estilo e otimizando o design");
+      }, 5000);
+
+      // Criar um FormData para enviar a imagem junto com os outros dados
+      const requestFormData = new FormData();
+      
+      // Adicionar a imagem se existir
+      if (formData.productImage) {
+        requestFormData.append('productImage', formData.productImage);
       }
       
-      // Criar novo controlador
-      controller = new AbortController();
+      // Remover o preview da imagem dos dados do formulário para o JSON
+      const { productImagePreview, ...formDataWithoutPreview } = formData;
+      requestFormData.append('data', JSON.stringify(formDataWithoutPreview));
       
-      // Definir um timeout de 180 segundos (3 minutos)
-      timeoutId = setTimeout(() => {
-        console.log("Timeout atingido após 180 segundos");
-        if (controller) {
-          controller.abort();
-        }
-      }, 180000);
-
-      // Converter imagens para URLs de dados (base64)
-      const imageUrls: string[] = [];
-      
-      // Se tiver imagens, converter para base64 em paralelo
-      if (images.length > 0) {
-        setLoadingMessage("Processando imagens...");
-        const imagePromises = images.map(img => 
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve(reader.result as string);
-            };
-            reader.readAsDataURL(img.file);
-          })
-        );
-        
-        const imageResults = await Promise.all(imagePromises);
-        imageUrls.push(...imageResults);
-      }
-      
-      setLoadingMessage("Enviando dados para IA...");
-
-      const response = await fetch('/api/landing-pages', {
+      // Configurar as opções da requisição com FormData
+      const requestOptions: RequestInit = {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          benefits: filteredBenefits,
-          images: imageUrls
-        }),
-        signal: controller.signal
-      });
+        body: requestFormData, 
+        // Não definir o Content-Type, o navegador irá configurar automaticamente
+      };
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
+      // Fazer a requisição para gerar a landing page
+      const response = await fetch('/api/landing-pages', requestOptions);
+      
+      // Parar o intervalo de atualização dos pontos
+      clearInterval(dotsInterval);
 
       if (!response.ok) {
+        // Tentativa de obter detalhes do erro
+        let errorMessage = "Erro ao gerar landing page";
+        try {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao gerar a landing page');
-      }
-      
-      const data = await response.json();
-      const codeContent = data.result;
-      
-      // Simular uma geração progressiva para feedback visual
-      const codeLines = codeContent.split('\n');
-      let displayedCode = "";
-      
-      for (let i = 0; i < codeLines.length; i += 3) {
-        const chunk = codeLines.slice(i, i + 3).join('\n');
-        displayedCode += chunk + '\n';
-        setResult(displayedCode);
-        
-        // Pequena pausa para criar efeito de digitação
-        if (i < codeLines.length - 3) {
-          await new Promise(resolve => setTimeout(resolve, 30));
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Se não conseguir obter o JSON, usar o texto
+          try {
+            errorMessage = await response.text() || errorMessage;
+          } catch {
+            // Manter a mensagem padrão se nada funcionar
+          }
         }
+        throw new Error(errorMessage);
       }
       
-      // Salvar landing page no banco de dados
-      try {
-        const saveResponse = await fetch('/api/user-creations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: `Landing Page - ${formData.product}`,
-            type: 'landing-page',
-            content: {
-              title: formData.product,
-              niche: formData.niche,
-              benefits: filteredBenefits,
-              targetAudience: formData.targetAudience,
-              callToAction: formData.callToAction,
-              pricing: formData.pricing,
-              style: formData.style,
-              testimonials: formData.testimonials,
-              result: codeContent
-            }
-          })
-        });
+      // Verificar o tipo de conteúdo da resposta
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        // Se for JSON, estamos recebendo arquivos separados
+        const responseData = await response.json();
+        console.log("Resposta da API (arquivos separados):", responseData);
         
-        if (!saveResponse.ok) {
-          console.error('Erro ao salvar landing page:', await saveResponse.json());
+        if (responseData.separatedFiles) {
+          setHtmlCode(responseData.separatedFiles.html || "");
+          setCssCode(responseData.separatedFiles.css || "");
+          setJsCode(responseData.separatedFiles.js || "");
+          setSeparatedFiles(true);
         }
-      } catch (saveError) {
-        console.error('Erro ao salvar landing page:', saveError);
-        // Não exibir erro para o usuário, pois a landing page já foi gerada
+        
+        setGeneratedCode(responseData.code || "");
+      } else {
+        // Se for HTML, estamos recebendo o HTML completo
+        const htmlContent = await response.text();
+        console.log("Resposta da API: HTML recebido com tamanho", htmlContent.length);
+        
+        setHtmlCode(htmlContent);
+        setCssCode("");
+        setJsCode("");
+        setSeparatedFiles(false);
+        setGeneratedCode(htmlContent);
       }
+      
+      // Rolar para o resultado
+      setTimeout(() => {
+        document.getElementById('result-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 500);
       
       toast.success("Landing page gerada com sucesso!");
-    } catch (error: unknown) {
-      console.error("Erro ao gerar landing page:", error);
-      
-      // Verificar se o erro foi devido ao abort
-      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-        toast.error("A geração da landing page excedeu o tempo limite. Tente novamente com uma descrição mais curta ou entre em contato com o suporte se o problema persistir.");
-      } else {
-        toast.error(`Erro ao gerar a landing page: ${error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'}`);
-      }
+    } catch (error) {
+      console.error("Erro:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao gerar landing page");
     } finally {
-      // Limpar o timeout e o controller
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      setLoading(false);
+    }
+  };
+
+  // Renderizar a visualização da landing page no iframe quando estiver disponível
+  useEffect(() => {
+    if (iframeRef.current && previewOpen && generatedCode) {
+      const iframeDocument = iframeRef.current.contentDocument;
+      if (iframeDocument) {
+        iframeDocument.open();
+        iframeDocument.write(generatedCode);
+        iframeDocument.close();
+      }
+    }
+  }, [previewOpen, generatedCode]);
+
+  // Função para abrir/fechar a visualização da landing page
+  const togglePreview = () => {
+    setPreviewOpen(!previewOpen);
+  };
+
+  // Função para criar o HTML combinado a partir dos arquivos separados
+  const createCombinedHTML = (html: string, css: string, js: string) => {
+    // Se o HTML já estiver completo (com tags html, head e body), extrair apenas o conteúdo do corpo
+    let bodyContent = html;
+    
+    if (html.includes('<body') && html.includes('</body>')) {
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch && bodyMatch[1]) {
+        bodyContent = bodyMatch[1];
+      }
+    } else if (html.includes('<html') && html.includes('</html>')) {
+      // Se é um HTML completo, retornar com o CSS e JS injetados
+      let fullHtml = html;
+      
+      // Adicionar o CSS no head se necessário
+      if (css && !fullHtml.includes('<style>')) {
+        fullHtml = fullHtml.replace('</head>', `<style>\n${css}\n</style>\n</head>`);
       }
       
-      // Limpar o timer de mensagens
-      clearInterval(messageTimer);
+      // Adicionar o JS no final do body se necessário
+      if (js && !fullHtml.includes('<script>')) {
+        fullHtml = fullHtml.replace('</body>', `<script>\n${js}\n</script>\n</body>`);
+      }
       
-      controller = null;
-      setLoading(false);
-      setLoadingMessage("");
-      setLoadingDots("");
+      return fullHtml;
+    }
+    
+    // Construir o HTML combinado
+    return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Page</title>
+  <style>
+${css}
+  </style>
+</head>
+<body>
+${bodyContent}
+  <script>
+${js}
+  </script>
+</body>
+</html>
+    `.trim();
+  };
+
+  // Função para criar o ZIP para download
+  const createZipDownload = async (html: string, css: string, js: string) => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      zip.file("index.html", html);
+      zip.file("styles.css", css);
+      zip.file("script.js", js);
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      
+      setZipDownloadUrl(url);
+      } catch (error) {
+      console.error("Erro ao criar ZIP:", error);
+      toast.error("Erro ao criar arquivo para download");
     }
   };
   
-  // Copiar resultado para a área de transferência
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result)
-      .then(() => toast.success("Código copiado para a área de transferência"))
-      .catch(() => toast.error("Erro ao copiar o código"));
+  // Função para copiar texto para a área de transferência
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => toast.success("Copiado para a área de transferência!"))
+      .catch(() => toast.error("Erro ao copiar. Tente novamente."));
   };
   
-  // Download do código HTML
-  const handleDownload = () => {
-    const blob = new Blob([result], { type: 'text/html' });
+  // Função para download de arquivo individual
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `landing-page-${formData.niche.toLowerCase().replace(/\s+/g, '-')}.html`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("Arquivo HTML baixado com sucesso!");
-  };
-
-  // Função para abrir a visualização em uma nova janela
-  const openInNewWindow = useCallback(() => {
-    if (!result) return;
-    
-    try {
-      const newWindow = window.open('', '_blank');
-      if (!newWindow) {
-        toast.error("Não foi possível abrir uma nova janela. Verifique se o bloqueador de pop-ups está desativado.");
-        return;
-      }
-      
-      // Escreve o conteúdo HTML diretamente no novo documento
-      newWindow.document.open();
-      newWindow.document.write(result);
-      newWindow.document.close();
-    } catch (error) {
-      console.error('Erro ao abrir nova janela:', error);
-      toast.error("Não foi possível abrir a visualização em uma nova janela.");
-    }
-  }, [result]);
-
-  // Efeito para renderizar o conteúdo HTML diretamente
-  useEffect(() => {
-    if (result && previewRef.current && activeTab === "preview") {
-      try {
-        // Limpar conteúdo anterior
-        previewRef.current.innerHTML = '';
-        
-        // Criar um iframe para isolar completamente o conteúdo
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        
-        // Configurar o sandbox (forma segura)
-        const sandboxAttr = document.createAttribute('sandbox');
-        sandboxAttr.value = 'allow-same-origin allow-scripts allow-forms';
-        iframe.attributes.setNamedItem(sandboxAttr);
-        
-        // Adicionar ao DOM
-        previewRef.current.appendChild(iframe);
-        
-        // Escrever o conteúdo no iframe após ele estar pronto
-        iframe.onload = () => {
-          if (iframe.contentDocument) {
-            iframe.contentDocument.open();
-            iframe.contentDocument.write(result);
-            iframe.contentDocument.close();
-            
-            console.log("Conteúdo HTML renderizado com sucesso no iframe");
-          }
-        };
-        
-        // Iniciar carregamento do iframe
-        iframe.srcdoc = '<html><head></head><body></body></html>';
-        
-      } catch (error) {
-        console.error("Erro ao renderizar HTML:", error);
-        
-        // Exibir mensagem de erro em caso de falha
-        if (previewRef.current) {
-          previewRef.current.innerHTML = `
-            <div class="p-4 text-center">
-              <h3 class="text-lg font-medium text-red-600">Erro ao renderizar a visualização</h3>
-              <p class="mt-2 text-sm text-gray-600">Tente abrir em uma nova janela.</p>
-            </div>
-          `;
-        }
-      }
-    }
-  }, [result, activeTab]);
-
-  // Renderizar conteúdo da área de resultado
-  const renderResultContent = () => {
-    if (loading) {
-      return (
-        <div className="relative flex-grow">
-          <div className="absolute top-0 left-0 right-0 bg-primary/10 text-primary p-3 rounded-t-md flex items-center justify-between z-10">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm font-medium">{loadingMessage}{loadingDots}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Pode levar até 3 minutos...
-            </div>
-          </div>
-          <div className="min-h-[500px] pt-16 flex flex-col items-center justify-center">
-            <div className="w-full max-w-md">
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-primary animate-pulse" style={{width: '100%'}}></div>
-              </div>
-              <p className="text-sm text-center mt-4 text-muted-foreground">
-                Estamos criando sua landing page com IA. Esse processo pode levar até 3 minutos.
-              </p>
-              <p className="text-xs text-center mt-1 text-muted-foreground">
-                As páginas geradas incluem HTML, CSS e JavaScript responsivos e otimizados.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (!result) {
-      return (
-        <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground h-full">
-          <Code className="h-16 w-16 mb-4 opacity-20" />
-          <p>O código HTML da landing page aparecerá aqui</p>
-          <p className="text-xs mt-1">Preencha o formulário e clique em Gerar Landing Page</p>
-        </div>
-      );
-    }
-
-    if (activeTab === "code") {
-      return (
-        <Textarea
-          value={result}
-          readOnly
-          className="min-h-[500px] font-mono text-sm resize-none border-0 bg-muted/30"
-        />
-      );
-    } else {
-      return (
-        <div className="flex flex-col h-full">
-          <div className="flex justify-end mb-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openInNewWindow}
-              className="h-7 gap-1"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>Abrir em nova janela</span>
-            </Button>
-          </div>
-          <div 
-            ref={previewRef} 
-            className="min-h-[450px] overflow-auto border rounded p-1 bg-white w-full flex-grow"
-            style={{ height: 'calc(500px - 30px)', maxHeight: 'calc(500px - 30px)' }}
-          />
-        </div>
-      );
-    }
   };
   
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">IA de Landing Pages</h1>
-        <p className="text-muted-foreground">
-          Crie landing pages de alta conversão otimizadas para vender seu produto ou serviço.
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-4">Gerador de Landing Pages Profissionais</h1>
+      <p className="text-gray-600 mb-8">
+        Crie landing pages de alta conversão com código HTML, CSS e JavaScript separados e otimizados para seu negócio.
         </p>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Formulário */}
-        <div className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border p-4 shadow-sm">
-            {/* Nicho */}
-            <div className="grid gap-2">
-              <Label htmlFor="niche">
-                Nicho <span className="text-red-500">*</span>
-              </Label>
+        <div className="md:col-span-2">
+          <Card className="p-6 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Informações da Landing Page</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="niche" className="block text-sm font-medium text-gray-700 mb-1">
+                    Nicho*
+                  </label>
               <input
+                    type="text"
                 id="niche"
                 name="niche"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    placeholder="Ex: Educação, Saúde, Tecnologia..."
                 value={formData.niche}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Emagrecimento, Marketing Digital, Finanças..."
                 required
-                disabled={loading}
               />
             </div>
-            
-            {/* Produto */}
-            <div className="grid gap-2">
-              <Label htmlFor="product">
-                Produto <span className="text-red-500">*</span>
-              </Label>
+                <div>
+                  <label htmlFor="product" className="block text-sm font-medium text-gray-700 mb-1">
+                    Produto/Serviço*
+                  </label>
               <input
+                    type="text"
                 id="product"
                 name="product"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    placeholder="Ex: Curso online, Consultoria..."
                 value={formData.product}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Curso de Emagrecimento Saudável, Mentorias..."
                 required
-                disabled={loading}
+              />
+                </div>
+            </div>
+            
+              <div>
+                <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700 mb-1">
+                  Público-alvo
+                </label>
+              <input 
+                  type="text"
+                  id="targetAudience"
+                  name="targetAudience"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  placeholder="Ex: Profissionais de marketing, Mulheres 25-45 anos..."
+                  value={formData.targetAudience}
+                  onChange={handleChange}
               />
             </div>
             
-            {/* Upload de imagens */}
-            <div className="grid gap-2">
-              <Label>
-                Imagens do Produto/Serviço <span className="text-xs text-muted-foreground">(Opcional, máx. 5)</span>
-              </Label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Principais Benefícios* (3-5 benefícios do seu produto/serviço)
+                </label>
+                {formData.benefits.map((benefit, index) => (
+                  <div key={index} className="mb-2 flex">
               <input 
-                ref={imageInputRef}
-                type="file" 
-                accept="image/*" 
-                multiple 
-                onChange={handleImageChange}
-                className="hidden"
-                disabled={loading || images.length >= 5}
-              />
-              
-              {/* Botão de upload */}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={triggerFileInput}
-                disabled={loading || images.length >= 5}
-              >
-                <ImageIcon className="mr-2 h-4 w-4" />
-                {images.length === 0 
-                  ? "Fazer upload de imagens" 
-                  : `Adicionar mais imagens (${images.length}/5)`}
-              </Button>
-              
-              {/* Preview das imagens */}
-              {images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {images.map((img, index) => (
-                    <div key={index} className="relative group">
-                      <img 
-                        src={img.preview} 
-                        alt={`Imagem ${index + 1}`}
-                        className="h-20 w-full object-cover rounded border"
-                      />
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded"
+                      placeholder={`Benefício ${index + 1}`}
+                      value={benefit}
+                      onChange={(e) => {
+                        const newBenefits = [...formData.benefits];
+                        newBenefits[index] = e.target.value;
+                        setFormData(prev => ({
+                          ...prev,
+                          benefits: newBenefits
+                        }));
+                      }}
+                      required={index < 3}
+                    />
+                    {index > 2 && (
                       <button
                         type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remover imagem"
+                        className="ml-2 px-3 py-2 bg-red-50 text-red-500 rounded hover:bg-red-100"
+                        onClick={() => removeBenefit(index)}
                       >
-                        <X className="h-3 w-3" />
+                        &times;
                       </button>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
-            
-            {/* Benefícios */}
-            <div className="grid gap-2">
-              <Label>
-                Benefícios do Produto
-              </Label>
-              {formData.benefits.map((benefit, index) => (
-                <input
-                  key={index}
-                  value={benefit}
-                  onChange={(e) => handleBenefitChange(index, e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder={`Benefício ${index + 1}`}
-                  disabled={loading}
-                />
               ))}
-              {formData.benefits.length < 6 && !loading && (
+                {formData.benefits.length < 5 && (
                 <button
                   type="button"
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
                   onClick={addBenefit}
-                  className="text-sm text-primary hover:underline"
                 >
-                  + Adicionar mais um benefício
+                    + Adicionar outro benefício
                 </button>
               )}
             </div>
             
-            {/* Público-alvo */}
-            <div className="grid gap-2">
-              <Label htmlFor="targetAudience">
-                Público-alvo
-              </Label>
+              <div>
+                <label htmlFor="callToAction" className="block text-sm font-medium text-gray-700 mb-1">
+                  Call to Action
+                </label>
               <input
-                id="targetAudience"
-                name="targetAudience"
-                value={formData.targetAudience}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Mulheres entre 30-50 anos interessadas em emagrecimento"
-                disabled={loading}
-              />
-            </div>
-            
-            {/* Call-to-action */}
-            <div className="grid gap-2">
-              <Label htmlFor="callToAction">
-                Call-to-action
-              </Label>
-              <input
+                  type="text"
                 id="callToAction"
                 name="callToAction"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  placeholder="Ex: Assinar agora, Agendar demonstração..."
                 value={formData.callToAction}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Comprar Agora, Garantir Acesso, Inscrever-se..."
-                disabled={loading}
               />
             </div>
             
-            {/* Preço/Oferta */}
-            <div className="grid gap-2">
-              <Label htmlFor="pricing">
-                Informações de Preço/Oferta
-              </Label>
+              <div>
+                <label htmlFor="pricing" className="block text-sm font-medium text-gray-700 mb-1">
+                  Preço ou Oferta
+                </label>
               <input
+                  type="text"
                 id="pricing"
                 name="pricing"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  placeholder="Ex: R$ 97/mês, 30% de desconto..."
                 value={formData.pricing}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: De R$ 997 por apenas R$ 497"
-                disabled={loading}
               />
             </div>
             
-            {/* Estilo */}
-            <div className="grid gap-2">
-              <Label htmlFor="style">
-                Estilo Visual
-              </Label>
-              <select
-                id="style"
-                name="style"
-                value={formData.style}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                disabled={loading}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Estilo da Landing Page*
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.values(LANDING_PAGE_STYLES).map(style => (
+                    <div 
+                      key={style.id}
+                      className={cn(
+                        "flex items-center justify-center p-3 border rounded-md cursor-pointer transition-all",
+                        formData.style === style.id
+                          ? "border-2 border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      )}
+                      onClick={() => setFormData({...formData, style: style.id})}
               >
-                <option value="minimalista">Minimalista</option>
-                <option value="moderno">Moderno</option>
-                <option value="colorido">Colorido</option>
-                <option value="corporativo">Corporativo</option>
-                <option value="elegante">Elegante</option>
-              </select>
+                      <div className="text-center">
+                        <div 
+                          className="w-5 h-5 rounded-full mx-auto mb-2"
+                          style={{backgroundColor: style.colors.primary}}
+                        />
+                        <span className="text-sm font-medium">{style.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
             </div>
             
-            {/* Testimonials checkbox */}
-            <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center space-x-2 text-sm">
               <input
                 type="checkbox"
-                id="testimonials"
                 name="testimonials"
                 checked={formData.testimonials}
-                onChange={handleCheckboxChange}
-                className="rounded border-input h-4 w-4"
-                disabled={loading}
-              />
-              <Label htmlFor="testimonials" className="text-sm cursor-pointer">
-                Incluir seção para depoimentos
-              </Label>
+                    onChange={(e) => handleCheckboxChange(e)}
+                    className="rounded text-blue-600"
+                  />
+                  <span>Incluir depoimentos</span>
+                </label>
+                
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="separateFiles"
+                    checked={formData.separateFiles}
+                    onChange={(e) => handleCheckboxChange(e)}
+                    className="rounded text-blue-600"
+                  />
+                  <span>Gerar HTML, CSS e JS separados</span>
+                </label>
             </div>
             
-            {/* Botão de envio */}
-            <div className="flex gap-2">
+              {/* Upload de imagem do produto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Imagem do Produto
+                </label>
+                <div className="mt-1 flex flex-col items-center justify-center">
+                  {formData.productImagePreview ? (
+                    <div className="relative w-full max-w-md">
+                      <img 
+                        src={formData.productImagePreview} 
+                        alt="Preview" 
+                        className="rounded-lg border shadow-sm w-full object-contain max-h-64" 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, productImage: null, productImagePreview: undefined }))}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600"
+                        aria-label="Remover imagem"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="group w-full max-w-md h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400 group-hover:text-gray-500" />
+                        <p className="mt-1 text-sm text-gray-500 group-hover:text-gray-600">
+                          Clique para fazer upload ou arraste e solte
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG, WEBP até 5MB
+                        </p>
+                      </div>
+                      <input
+                        id="dropzone-file"
+                        type="file"
+                        className="hidden"
+                        accept="image/png, image/jpeg, image/webp"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
               <Button
                 type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700"
                 disabled={loading}
-                className={cn(
-                  "flex items-center justify-center gap-2 w-full",
-                  loading && "opacity-70 cursor-not-allowed"
-                )}
               >
-                {loading ? <Loading /> : (
-                  <>
-                    <Layout className="h-4 w-4" />
-                    Gerar Landing Page
-                  </>
+                {loading ? (
+                  <span className="flex items-center">
+                    Gerando
+                    <LoadingDots />
+                  </span>
+                ) : (
+                  "Gerar Landing Page"
                 )}
               </Button>
-            </div>
           </form>
+          </Card>
         </div>
 
-        {/* Resultado */}
-        <div className="space-y-4">
-          <div className="rounded-lg border p-4 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Resultado</h3>
-              
-              {result && !loading && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopy}
-                    className="h-8 gap-1"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Copiar</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDownload}
-                    className="h-8 gap-1"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Baixar</span>
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {result && !loading && (
-              <Tabs 
-                defaultValue="code" 
-                className="w-full mb-4"
-                value={activeTab}
-                onValueChange={(value) => setActiveTab(value as "code" | "preview")}
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="code" className="flex items-center gap-1">
-                    <Code className="h-4 w-4" />
-                    <span>Código</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="preview" className="flex items-center gap-1">
-                    <Eye className="h-4 w-4" />
-                    <span>Visualização</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
+        {/* Informações sobre estilos */}
+        <div className="md:col-span-1">
+          <Card className="p-6 bg-white rounded-lg shadow-md h-full overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Info size={18} className="text-blue-500" />
+              <span>Guia de Estilos</span>
+            </h2>
             
-            <div className="flex-grow">
-              {renderResultContent()}
+            <div className="space-y-6">
+              {Object.values(LANDING_PAGE_STYLES).map((style) => (
+                <div key={style.id} className="border-b pb-4 last:border-b-0">
+                  <h3 className="font-medium text-lg mb-1">
+                    {style.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {style.description}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {style.recommendedFor.map((item, i) => (
+                      <span key={i} className="inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <h4 className="text-xs font-medium uppercase text-gray-500 mb-1">Características</h4>
+                    <ul className="text-xs text-gray-700 space-y-1">
+                      {style.features.slice(0, 3).map((feature, i) => (
+                        <li key={i} className="flex items-start gap-1">
+                          <CheckCircle size={12} className="text-green-500 mt-0.5 shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+              
+              <div className="bg-blue-50 p-3 rounded-md text-sm">
+                <h3 className="font-medium mb-2 text-blue-700">Dica Profissional</h3>
+                <p className="text-xs text-blue-800 mb-2">
+                  Para obter resultados de melhor qualidade:
+                </p>
+                <ul className="text-xs text-blue-800 space-y-1 pl-5 list-disc">
+                  <li>Forneça detalhes específicos sobre seu produto</li>
+                  <li>Descreva claramente quem é seu público-alvo</li>
+                  <li>Liste de 3 a 5 benefícios fortes e persuasivos</li>
+                  <li>Escolha um estilo que combine com seu nicho</li>
+                  <li>Use um Call-to-Action claro e direto</li>
+                </ul>
+              </div>
             </div>
-          </div>
-
-          <div className="bg-primary/10 rounded-lg p-4 text-sm">
-            <h3 className="font-medium mb-2">💡 Dicas para landing pages eficazes:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Mantenha o foco em um único objetivo/CTA</li>
-              <li>Destaque os benefícios, não apenas características</li>
-              <li>Inclua elementos de prova social (depoimentos)</li>
-              <li>Use gatilhos de escassez e urgência (quando aplicável)</li>
-            </ul>
-          </div>
+          </Card>
         </div>
       </div>
+
+      {/* Resultado da landing page */}
+      {generatedCode && (
+        <div id="result-section" className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Landing Page Gerada</h2>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={togglePreview}
+              >
+                {previewOpen ? "Fechar Visualização" : "Visualizar Landing Page"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => copyToClipboard(generatedCode)}
+              >
+                Copiar HTML
+              </Button>
+              {separatedFiles && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => copyToClipboard(cssCode)}
+                  >
+                    Copiar CSS
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => copyToClipboard(jsCode)}
+                  >
+                    Copiar JS
+                  </Button>
+                  </>
+                )}
+            </div>
+          </div>
+
+          {/* Visualização da Landing Page */}
+          {previewOpen && (
+            <div className="mb-6 border shadow-md rounded-lg overflow-hidden">
+              <div className="bg-gray-200 p-2 flex justify-between items-center">
+                <span className="font-medium text-sm">Preview da Landing Page</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => window.open(URL.createObjectURL(new Blob([generatedCode], { type: 'text/html' })), '_blank')}
+                >
+                  Abrir em Nova Janela
+              </Button>
+            </div>
+              <div className="w-full h-[600px] overflow-hidden">
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={generatedCode}
+                  title="Landing Page Preview"
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin"
+                />
+        </div>
+            </div>
+          )}
+
+          <Card className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <Tabs defaultValue="preview" className="w-full">
+              <TabsList className="w-full bg-gray-100 p-0 rounded-none flex">
+                <TabsTrigger value="preview" className="flex-1 py-3 data-[state=active]:bg-white rounded-none gap-1">
+                  <Eye size={14} />
+                  <span>Preview</span>
+                </TabsTrigger>
+                <TabsTrigger value="code" className="flex-1 py-3 data-[state=active]:bg-white rounded-none gap-1">
+                  <Code size={14} />
+                  <span>HTML</span>
+                </TabsTrigger>
+                {separatedFiles && (
+                  <>
+                    <TabsTrigger value="css" className="flex-1 py-3 data-[state=active]:bg-white rounded-none gap-1">
+                      <Paintbrush size={14} />
+                      <span>CSS</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="js" className="flex-1 py-3 data-[state=active]:bg-white rounded-none gap-1">
+                      <FileCog size={14} />
+                      <span>JS</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="download" className="flex-1 py-3 data-[state=active]:bg-white rounded-none gap-1">
+                      <Download size={14} />
+                      <span>Download</span>
+                    </TabsTrigger>
+                  </>
+                )}
+              </TabsList>
+
+              <TabsContent value="preview" className="p-0 m-0 h-[600px] overflow-hidden">
+                <div className="flex justify-between items-center p-2 bg-gray-100 border-b">
+                  <span className="text-xs font-medium">Preview da Landing Page</span>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant={viewMode === "desktop" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("desktop")}
+                      className="h-7 gap-1"
+                    >
+                      <Monitor size={14} />
+                      <span>Desktop</span>
+                    </Button>
+                    <Button
+                      variant={viewMode === "mobile" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("mobile")}
+                      className="h-7 gap-1"
+                    >
+                      <Smartphone size={14} />
+                      <span>Mobile</span>
+                    </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                      className="h-7 gap-1 ml-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                      onClick={() => {
+                        // Criar blob URL e abrir em nova aba
+                        const blob = new Blob([generatedCode || ""], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                        // Liberar URL após abrir
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                      }}
+                    >
+                      <Eye size={14} />
+                      <span>Abrir em Nova Aba</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className={cn(
+                  "flex justify-center bg-gray-50 h-[568px] overflow-auto transition-all duration-300 ease-in-out",
+                  viewMode === "mobile" && "p-4"
+                )}>
+                  <iframe
+                    srcDoc={generatedCode}
+                    title="Landing Page Preview"
+                    className={cn(
+                      "border-0 bg-white transition-all duration-300 ease-in-out",
+                      viewMode === "desktop" ? "w-full h-full" : "w-[375px] h-full rounded-lg shadow-md"
+                    )}
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                    onLoad={(e) => {
+                      console.log("iframe carregado");
+                      // Garantir que o iframe esteja visível
+                      const iframe = e.currentTarget;
+                      if (iframe) {
+                        iframe.style.display = "block";
+                      }
+                    }}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="code" className="p-0 m-0">
+                <div className="flex justify-between items-center p-2 bg-gray-100 border-b">
+                  <span className="text-xs font-medium">index.html</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 gap-1"
+                    onClick={() => copyToClipboard(htmlCode)}
+                  >
+                    <Copy size={14} />
+                    <span>Copiar</span>
+                  </Button>
+                </div>
+                <pre className="bg-gray-900 text-gray-100 p-4 overflow-auto h-[568px] text-sm">
+                  <code>{htmlCode}</code>
+                </pre>
+              </TabsContent>
+
+              {separatedFiles && (
+                <>
+                  <TabsContent value="css" className="p-0 m-0">
+                    <div className="flex justify-between items-center p-2 bg-gray-100 border-b">
+                      <span className="text-xs font-medium">styles.css</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                        className="h-7 gap-1"
+                        onClick={() => copyToClipboard(cssCode)}
+                  >
+                        <Copy size={14} />
+                        <span>Copiar</span>
+                  </Button>
+                </div>
+                    <pre className="bg-gray-900 text-gray-100 p-4 overflow-auto h-[568px] text-sm">
+                      <code>{cssCode}</code>
+                    </pre>
+                  </TabsContent>
+
+                  <TabsContent value="js" className="p-0 m-0">
+                    <div className="flex justify-between items-center p-2 bg-gray-100 border-b">
+                      <span className="text-xs font-medium">script.js</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                        className="h-7 gap-1"
+                        onClick={() => copyToClipboard(jsCode)}
+                  >
+                        <Copy size={14} />
+                        <span>Copiar</span>
+                  </Button>
+            </div>
+                    <pre className="bg-gray-900 text-gray-100 p-4 overflow-auto h-[568px] text-sm">
+                      <code>{jsCode}</code>
+                    </pre>
+                  </TabsContent>
+
+                  <TabsContent value="download" className="p-0 m-0">
+                    <div className="p-8 flex flex-col items-center justify-center h-[600px]">
+                      <h3 className="text-xl font-semibold mb-6">Baixar Arquivos</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 w-full max-w-lg">
+                        <Button 
+                          variant="outline" 
+                          className="gap-2 py-6" 
+                          onClick={() => downloadFile(htmlCode, "index.html")}
+                        >
+                          <Download size={18} />
+                          <div className="text-left">
+                            <div className="font-medium">HTML</div>
+                            <div className="text-xs text-gray-500">index.html</div>
+                          </div>
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="gap-2 py-6" 
+                          onClick={() => downloadFile(cssCode, "styles.css")}
+                        >
+                          <Download size={18} />
+                          <div className="text-left">
+                            <div className="font-medium">CSS</div>
+                            <div className="text-xs text-gray-500">styles.css</div>
+            </div>
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="gap-2 py-6" 
+                          onClick={() => downloadFile(jsCode, "script.js")}
+                        >
+                          <Download size={18} />
+                          <div className="text-left">
+                            <div className="font-medium">JavaScript</div>
+                            <div className="text-xs text-gray-500">script.js</div>
+          </div>
+                        </Button>
+                        
+                        {zipDownloadUrl && (
+                          <Button 
+                            className="gap-2 py-6 bg-blue-600 hover:bg-blue-700" 
+                            onClick={() => {
+                              if (zipDownloadUrl) {
+                                const a = document.createElement('a');
+                                a.href = zipDownloadUrl;
+                                a.download = "landing-page.zip";
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                            }}
+                          >
+                            <Download size={18} />
+                            <div className="text-left">
+                              <div className="font-medium">Todos os Arquivos</div>
+                              <div className="text-xs text-gray-200">landing-page.zip</div>
+          </div>
+                          </Button>
+              )}
+        </div>
+
+                      <p className="text-sm text-gray-500 text-center max-w-md">
+                        Baixe os arquivos individualmente ou todos de uma vez no formato ZIP para implementar sua landing page em qualquer servidor web.
+                      </p>
+      </div>
+                  </TabsContent>
+                </>
+              )}
+              </Tabs>
+          </Card>
+        </div>
+      )}
+
+      {loading && (
+        <div className="mt-6 bg-white rounded-lg shadow-lg p-6 text-center">
+          <LoadingWithMessage message={loadingMessage + loadingDots} />
+          <p className="text-sm text-gray-500 mt-4">
+            A geração pode levar até 2 minutos dependendo da complexidade da landing page.
+          </p>
+        </div>
+      )}
     </div>
   );
 } 
