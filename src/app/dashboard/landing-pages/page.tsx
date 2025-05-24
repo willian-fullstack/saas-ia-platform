@@ -10,7 +10,9 @@ import {
   Download,
   Image as ImageIcon,
   X,
-  ExternalLink
+  ExternalLink,
+  Smartphone,
+  Monitor
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,30 +20,52 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loading } from "@/components/ui/loading";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+// Corrigir a interface do formData no início do componente
+interface FormData {
+  titulo: string;
+  objetivo: string;
+  descricao: string;
+  tom: string;
+  cta: string;
+  elementos: string;
+  cores: string;
+  estilo: string;
+}
 
 export default function LandingPagesPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Gerando sua landing page");
   const [loadingDots, setLoadingDots] = useState("");
-  const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
+  const [activeTab, setActiveTab] = useState<"code" | "preview" | "external" | "html">("preview");
   const previewRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({
-    niche: "",
-    product: "",
-    benefits: ["", "", ""],
-    targetAudience: "",
-    callToAction: "",
-    testimonials: true,
-    pricing: "",
-    style: "minimalista"
+  const externalPreviewRef = useRef<HTMLDivElement>(null);
+  const htmlCodeRef = useRef<HTMLPreElement>(null);
+  const [formData, setFormData] = useState<FormData>({
+    titulo: "",
+    objetivo: "",
+    descricao: "",
+    tom: "profissional",
+    cta: "",
+    elementos: "",
+    cores: "",
+    estilo: "moderno"
   });
-  const [images, setImages] = useState<{file: File, preview: string}[]>([]);
+  const [images, setImages] = useState<{file: File, preview: string, description: string}[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
   
-  let timeoutId: NodeJS.Timeout | null = null;
-  let controller: AbortController | null = null;
+  // Controle de requisições e timeouts
+  const controllerRef = useRef<AbortController | null>(null);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [showMethodsContainer, setShowMethodsContainer] = useState(false);
+
+  // Adicionar estado para controlar a visualização desktop/mobile
+  const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
 
   // Efeito para mostrar mensagens durante o carregamento
   useEffect(() => {
@@ -111,6 +135,18 @@ export default function LandingPagesPage() {
           oldScript.parentNode?.replaceChild(newScript, oldScript);
         });
         
+        // Corrigir problema com "Mídia X" se existir no HTML
+        const mediaPlaceholders = previewRef.current.querySelectorAll('img[src^="Mídia "]');
+        mediaPlaceholders.forEach((img, index) => {
+          const mediaNumber = (img.getAttribute('src') || '').replace('Mídia ', '');
+          if (mediaNumber && !isNaN(parseInt(mediaNumber)) && parseInt(mediaNumber) <= images.length) {
+            const imgIndex = parseInt(mediaNumber) - 1;
+            if (images[imgIndex]) {
+              img.setAttribute('src', images[imgIndex].preview);
+            }
+          }
+        });
+        
         console.log('Preview renderizada com sucesso');
       } catch (error) {
         console.error('Erro ao renderizar preview:', error);
@@ -125,7 +161,7 @@ export default function LandingPagesPage() {
         `;
       }
     }
-  }, [result, activeTab]);
+  }, [result, activeTab, images]);
 
   // Limpar as URLs das imagens ao desmontar o componente
   useEffect(() => {
@@ -138,384 +174,650 @@ export default function LandingPagesPage() {
   // Atualizar o estado do formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Atualizar um benefício específico
-  const handleBenefitChange = (index: number, value: string) => {
-    const newBenefits = [...formData.benefits];
-    newBenefits[index] = value;
-    setFormData(prev => ({
-      ...prev,
-      benefits: newBenefits
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   // Adicionar mais um campo de benefício
   const addBenefit = () => {
-    if (formData.benefits.length < 6) {
-      setFormData(prev => ({
-        ...prev,
-        benefits: [...prev.benefits, ""]
+    // Não é mais necessário, estamos usando um novo formato de formulário
+  };
+
+  // Adicionar função para alternar entre modos de visualização
+  const toggleViewMode = () => {
+    setViewMode(prevMode => prevMode === "desktop" ? "mobile" : "desktop");
+  };
+  
+  // Função para manipular a remoção de imagens corrigida para incluir description
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => {
+      const newImages = [...prev];
+      // Revogar URL de preview para evitar vazamento de memória
+      URL.revokeObjectURL(newImages[index].preview);
+      newImages.splice(index, 1);
+      return newImages;
+    });
+  };
+  
+  // Função para manipular upload de imagens corrigida para incluir description
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      // Limitar a 5 imagens no total
+      if (images.length + newFiles.length > 5) {
+        toast.error("Máximo de 5 imagens permitido");
+          return;
+        }
+        
+      const newImages = newFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        description: "" // Adicionar descrição vazia por padrão
       }));
-    }
-  };
-
-  // Atualizar checkbox
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: checked
-    }));
-  };
-
-  // Upload de imagens
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newImages: {file: File, preview: string}[] = [];
       
-      Array.from(e.target.files).forEach(file => {
-        // Verificar se é uma imagem
-        if (!file.type.startsWith('image/')) {
-          toast.error(`O arquivo ${file.name} não é uma imagem válida`);
-          return;
-        }
-        
-        // Limitar o tamanho a 5MB
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(`A imagem ${file.name} excede 5MB`);
-          return;
-        }
-        
-        // Criar URL de preview
-        const preview = URL.createObjectURL(file);
-        newImages.push({ file, preview });
-      });
-      
-      // Adicionar novas imagens (limitando a 5 no total)
-      if (images.length + newImages.length > 5) {
-        toast.error("Limite de 5 imagens excedido");
-        newImages.slice(0, 5 - images.length).forEach(img => {
-          setImages(prev => [...prev, img]);
-        });
-      } else {
         setImages(prev => [...prev, ...newImages]);
-      }
-    }
-    
-    // Limpar o input file
-    if (e.target.value) {
-      e.target.value = '';
     }
   };
-
-  // Remover uma imagem 
-  const removeImage = (index: number) => {
-    // Revogar a URL do objeto para liberar memória
-    URL.revokeObjectURL(images[index].preview);
-    
-    // Remover a imagem do array
-    setImages(prev => prev.filter((_, i) => i !== index));
+  
+  // Função para atualizar descrição da imagem
+  const updateImageDescription = (index: number, description: string) => {
+    setImages(prev => {
+      const newImages = [...prev];
+      newImages[index] = { ...newImages[index], description };
+      return newImages;
+    });
   };
-
-  // Abrir o seletor de arquivo
-  const triggerFileInput = () => {
-    if (imageInputRef.current) {
-      imageInputRef.current.click();
-    }
+  
+  // Adicionar renderização de controles para descrição de imagem
+  const renderImageItem = (image: { file: File; preview: string; description: string }, index: number) => {
+    return (
+      <div key={index} className="relative border rounded-md p-2 mb-2">
+        <div className="flex items-start gap-2">
+          <div className="w-16 h-16 relative flex-shrink-0">
+            <img 
+              src={image.preview} 
+              alt={`Imagem ${index + 1}`}
+              className="w-full h-full object-cover rounded"
+            />
+          </div>
+          <div className="flex-grow">
+            <p className="text-sm font-medium truncate mb-1">{image.file.name}</p>
+            <div className="text-xs text-muted-foreground mb-1">
+              {Math.round(image.file.size / 1024)} KB
+            </div>
+            <div className="mt-1">
+              <input
+                type="text"
+                placeholder="Descreva esta imagem"
+                value={image.description}
+                onChange={(e) => updateImageDescription(index, e.target.value)}
+                className="w-full px-2 py-1 text-xs border rounded"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute top-1 right-1 h-6 w-6 p-0"
+            onClick={() => handleRemoveImage(index)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   // Enviar formulário
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar campos obrigatórios
-    if (!formData.niche || !formData.product) {
-      toast.error("Preencha os campos obrigatórios: Nicho e Produto");
-      return;
-    }
-    
-    // Filtrar benefícios vazios
-    const filteredBenefits = formData.benefits.filter(benefit => benefit.trim() !== "");
-    
-    setLoading(true);
-    setResult("");
-    setLoadingMessage("Iniciando criação da landing page...");
-    
-    // Iniciar exibição de mensagens sequenciais para melhorar experiência de usuário
-    const loadingMessages = [
-      "Analisando o nicho e produto...",
-      "Estruturando o layout da página...",
-      "Criando seções de benefícios...",
-      "Otimizando elementos visuais...",
-      "Aplicando design responsivo...",
-      "Implementando call-to-action eficaz...",
-      "Refinando estilos CSS...",
-      "Finalizando a landing page...",
-      "Quase finalizado..."
-    ];
-    
-    let messageIndex = 0;
-    const messageTimer = setInterval(() => {
-      // Atualizar mensagem a cada 15 segundos
-      if (messageIndex < loadingMessages.length) {
-        setLoadingMessage(loadingMessages[messageIndex]);
-        messageIndex++;
-      }
-    }, 15000);
+    if (loading) return;
     
     try {
-      // Limpar qualquer controlador anterior
-      if (controller) {
-        controller.abort();
+      setLoading(true);
+      setLoadingMessage("Gerando sua landing page");
+      setLoadingDots("");
+      setResult("");
+      setShowDebugInfo(false);
+      setShowMethodsContainer(false);
+      
+      // Iniciar o intervalo para os pontos animados
+      const dotsInterval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev === "...") return "";
+          return prev + ".";
+        });
+      }, 500);
+      
+      // Preparar dados para envio
+      const imageDataForAPI = images.map((img, index) => ({
+        description: img.description || `Imagem ${index + 1}`,
+        index: index + 1
+      }));
+      
+      const payload = {
+        ...formData,
+        images: imageDataForAPI
+      };
+      
+      console.log("Enviando dados para API:", payload);
+      
+      // Abortar requisições anteriores se existirem
+      if (controllerRef.current) {
+        controllerRef.current.abort();
       }
       
-      // Criar novo controlador
-      controller = new AbortController();
+      // Criar novo controller para esta requisição
+      controllerRef.current = new AbortController();
       
-      // Definir um timeout de 180 segundos (3 minutos)
-      timeoutId = setTimeout(() => {
-        console.log("Timeout atingido após 180 segundos");
-        if (controller) {
-          controller.abort();
+      // Definir timeout para a requisição
+      timeoutIdRef.current = setTimeout(() => {
+        if (controllerRef.current) {
+          controllerRef.current.abort();
+          setLoading(false);
+          clearInterval(dotsInterval);
+          toast.error("Tempo limite excedido. Por favor, tente novamente.");
         }
-      }, 180000);
-
-      // Converter imagens para URLs de dados (base64)
-      const imageUrls: string[] = [];
+      }, 240000); // 4 minutos
       
-      // Se tiver imagens, converter para base64 em paralelo
-      if (images.length > 0) {
-        setLoadingMessage("Processando imagens...");
-        const imagePromises = images.map(img => 
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve(reader.result as string);
-            };
-            reader.readAsDataURL(img.file);
-          })
-        );
-        
-        const imageResults = await Promise.all(imagePromises);
-        imageUrls.push(...imageResults);
-      }
-      
-      setLoadingMessage("Enviando dados para IA...");
-
-      const response = await fetch('/api/landing-pages', {
-        method: 'POST',
+      // Fazer a requisição para a API
+      const response = await fetch("/api/landing-pages", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          ...formData,
-          benefits: filteredBenefits,
-          images: imageUrls
-        }),
-        signal: controller.signal
+        body: JSON.stringify(payload),
+        signal: controllerRef.current.signal
       });
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      
+      // Limpar timeout e controller
+      if (timeoutIdRef.current) {
+        clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
       }
+      controllerRef.current = null;
+      clearInterval(dotsInterval);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao gerar a landing page');
+        throw new Error(errorData.error || "Erro ao gerar a landing page");
       }
       
       const data = await response.json();
-      const codeContent = data.result;
       
-      // Simular uma geração progressiva para feedback visual
-      const codeLines = codeContent.split('\n');
-      let displayedCode = "";
+      // Verificar se a resposta tem o campo 'html' ou 'result'
+      const htmlContent = data.html || data.result;
       
-      for (let i = 0; i < codeLines.length; i += 3) {
-        const chunk = codeLines.slice(i, i + 3).join('\n');
-        displayedCode += chunk + '\n';
-        setResult(displayedCode);
+      if (!htmlContent) {
+        throw new Error("A API não retornou o HTML da landing page");
+      }
+      
+      // Verificar se a landing page contém os elementos essenciais
+      const qualityCheck = checkLandingPageQuality(htmlContent);
+      
+      if (qualityCheck.hasIssues) {
+        console.warn("Landing page gerada tem problemas:", qualityCheck.issues);
         
-        // Pequena pausa para criar efeito de digitação
-        if (i < codeLines.length - 3) {
-          await new Promise(resolve => setTimeout(resolve, 30));
-        }
+        // Adicionar notificação informativa, mas prosseguir com o carregamento
+        setTimeout(() => {
+          toast.info("A landing page foi gerada, mas pode precisar de alguns ajustes.", {
+            duration: 5000
+          });
+        }, 1000);
       }
       
-      // Salvar landing page no banco de dados
-      try {
-        const saveResponse = await fetch('/api/user-creations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: `Landing Page - ${formData.product}`,
-            type: 'landing-page',
-            content: {
-              title: formData.product,
-              niche: formData.niche,
-              benefits: filteredBenefits,
-              targetAudience: formData.targetAudience,
-              callToAction: formData.callToAction,
-              pricing: formData.pricing,
-              style: formData.style,
-              testimonials: formData.testimonials,
-              result: codeContent
-            }
-          })
-        });
-        
-        if (!saveResponse.ok) {
-          console.error('Erro ao salvar landing page:', await saveResponse.json());
-        }
-      } catch (saveError) {
-        console.error('Erro ao salvar landing page:', saveError);
-        // Não exibir erro para o usuário, pois a landing page já foi gerada
-      }
+      // Processar o HTML para substituir referências de mídia
+      const processedHtml = fixImagePlaceholders(htmlContent);
+      setResult(processedHtml);
       
-      toast.success("Landing page gerada com sucesso!");
-    } catch (error: unknown) {
-      console.error("Erro ao gerar landing page:", error);
+      // Mostrar os métodos de visualização
+      setShowMethodsContainer(true);
       
-      // Verificar se o erro foi devido ao abort
-      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-        toast.error("A geração da landing page excedeu o tempo limite. Tente novamente com uma descrição mais curta ou entre em contato com o suporte se o problema persistir.");
-      } else {
-        toast.error(`Erro ao gerar a landing page: ${error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'}`);
-      }
+      // Aplicar o método 4 (Blob) por padrão, pois é o mais eficaz
+      setTimeout(() => {
+        applyMethod4();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error("Erro:", error);
+      toast.error(error.message || "Erro ao gerar a landing page");
     } finally {
-      // Limpar o timeout e o controller
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      
-      // Limpar o timer de mensagens
-      clearInterval(messageTimer);
-      
-      controller = null;
       setLoading(false);
-      setLoadingMessage("");
-      setLoadingDots("");
     }
   };
   
-  // Copiar resultado para a área de transferência
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result)
-      .then(() => toast.success("Código copiado para a área de transferência"))
-      .catch(() => toast.error("Erro ao copiar o código"));
+  // Função para verificar a qualidade da landing page gerada
+  const checkLandingPageQuality = (html: string): { hasIssues: boolean, issues: string[] } => {
+    const issues: string[] = [];
+    const lowerHtml = html.toLowerCase();
+    
+    // Verificar elementos essenciais
+    if (!lowerHtml.includes('<header') && !lowerHtml.includes('class="header"') && !lowerHtml.includes('id="header"')) {
+      issues.push("Cabeçalho ausente ou mal identificado");
+    }
+    
+    if (!lowerHtml.includes('<footer') && !lowerHtml.includes('class="footer"') && !lowerHtml.includes('id="footer"')) {
+      issues.push("Rodapé ausente ou mal identificado");
+    }
+    
+    if (!lowerHtml.includes('id="depoimentos"') && !lowerHtml.includes('id="testimonials"') && 
+        !lowerHtml.includes('class="depoimentos"') && !lowerHtml.includes('class="testimonials"')) {
+      issues.push("Seção de depoimentos ausente ou mal identificada");
+    }
+    
+    if (!lowerHtml.includes('id="faq"') && !lowerHtml.includes('class="faq"')) {
+      issues.push("Seção de FAQ ausente ou mal identificada");
+    }
+    
+    // Verificar recursos importantes
+    if (!lowerHtml.includes('data-aos')) {
+      issues.push("Animações AOS ausentes");
+    }
+    
+    if (!lowerHtml.includes('class="fa-') && !lowerHtml.includes('fa fa-') && !lowerHtml.includes('fas fa-')) {
+      issues.push("Ícones FontAwesome ausentes");
+    }
+    
+    // Verificar imagens
+    const imgTags = html.match(/<img[^>]*>/gi) || [];
+    if (imgTags.length < 2) {
+      issues.push("Poucas imagens na página");
+    }
+    
+    // Verificar formulário
+    if (!lowerHtml.includes('<form') || !lowerHtml.includes('</form>')) {
+      issues.push("Formulário ausente");
+    }
+    
+    return {
+      hasIssues: issues.length > 0,
+      issues
+    };
   };
   
-  // Download do código HTML
+  // Função para copiar o HTML para a área de transferência
+  const handleCopy = () => {
+    if (result) {
+    navigator.clipboard.writeText(result)
+        .then(() => {
+          toast.success("HTML copiado para a área de transferência!");
+        })
+        .catch((err) => {
+          console.error("Erro ao copiar HTML:", err);
+          toast.error("Erro ao copiar HTML para a área de transferência");
+        });
+    }
+  };
+  
+  // Função para fazer o download do HTML como arquivo
   const handleDownload = () => {
+    if (!result) return;
+    
+    try {
     const blob = new Blob([result], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `landing-page-${formData.niche.toLowerCase().replace(/\s+/g, '-')}.html`;
+      a.download = `landing-page-${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("Arquivo HTML baixado com sucesso!");
+      toast.success("Download do HTML iniciado");
+    } catch (error) {
+      console.error("Erro ao fazer download:", error);
+      toast.error("Erro ao fazer download do HTML");
+    }
   };
 
   // Função para abrir a visualização em uma nova janela
-  const openInNewWindow = useCallback(() => {
+  const openInNewWindow = () => {
     if (!result) return;
     
     try {
-      const newWindow = window.open('', '_blank');
-      if (!newWindow) {
-        toast.error("Não foi possível abrir uma nova janela. Verifique se o bloqueador de pop-ups está desativado.");
-        return;
+      const processedHTML = fixImagePlaceholders(result);
+      const blob = new Blob([processedHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error("Erro ao abrir em nova janela:", error);
+      toast.error("Erro ao abrir em nova janela");
+    }
+  };
+
+  // Métodos de visualização
+  const applyMethod1 = () => {
+    try {
+      console.log('Aplicando método 1: document.write');
+      const iframe = previewIframeRef.current;
+      if (!iframe) return;
+      
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) return;
+      
+      // Processar o HTML para substituir os placeholders de imagem
+      const processedHTML = fixImagePlaceholders(result);
+      
+      iframeDoc.open();
+      iframeDoc.write(processedHTML);
+      iframeDoc.close();
+      
+      toast.success("Método 1 aplicado: document.write");
+    } catch (error) {
+      console.error('Erro ao usar Método 1:', error);
+      toast.error("Erro ao aplicar método 1");
+    }
+  };
+  
+  const applyMethod2 = () => {
+    try {
+      console.log('Aplicando método 2: data URL');
+      const iframe = previewIframeRef.current;
+      if (!iframe) return;
+      
+      // Processar o HTML para substituir os placeholders de imagem
+      const processedHTML = fixImagePlaceholders(result);
+      
+      const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(processedHTML);
+      iframe.src = dataUrl;
+      
+      toast.success("Método 2 aplicado: data URL");
+    } catch (error) {
+      console.error('Erro ao usar Método 2:', error);
+      toast.error("Erro ao aplicar método 2");
+    }
+  };
+  
+  const applyMethod3 = () => {
+    try {
+      console.log('Aplicando método 3: HTML Externo');
+      if (!externalPreviewRef.current) return;
+      
+      // Usar a função de carregamento externo
+      loadExternalPreview();
+    } catch (error) {
+      console.error('Erro ao usar Método 3:', error);
+      toast.error("Erro ao aplicar método 3");
+    }
+  };
+  
+  const applyMethod4 = () => {
+    try {
+      console.log('Aplicando método Blob (método recomendado)');
+      const iframe = previewIframeRef.current;
+      if (!iframe || !result) return;
+      
+      // Processar o HTML para substituir os placeholders de imagem
+      const processedHTML = fixImagePlaceholders(result);
+      
+      // Verificar se o HTML está completo com DOCTYPE, html, head e body
+      let completeHTML = processedHTML;
+      
+      // Garantir que temos doctype, html, head e body
+      if (!completeHTML.toLowerCase().includes('<!doctype')) {
+        completeHTML = '<!DOCTYPE html>\n' + completeHTML;
       }
       
-      // Escreve o conteúdo HTML diretamente no novo documento
-      newWindow.document.open();
-      newWindow.document.write(result);
-      newWindow.document.close();
-    } catch (error) {
-      console.error('Erro ao abrir nova janela:', error);
-      toast.error("Não foi possível abrir a visualização em uma nova janela.");
-    }
-  }, [result]);
-
-  // Efeito para renderizar o conteúdo HTML diretamente
-  useEffect(() => {
-    if (result && previewRef.current && activeTab === "preview") {
-      try {
-        // Limpar conteúdo anterior
-        previewRef.current.innerHTML = '';
+      if (!completeHTML.toLowerCase().includes('<html')) {
+        completeHTML = completeHTML.replace('<!DOCTYPE html>', '<!DOCTYPE html>\n<html lang="pt-BR">');
         
-        // Criar um iframe para isolar completamente o conteúdo
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        
-        // Configurar o sandbox (forma segura)
-        const sandboxAttr = document.createAttribute('sandbox');
-        sandboxAttr.value = 'allow-same-origin allow-scripts allow-forms';
-        iframe.attributes.setNamedItem(sandboxAttr);
-        
-        // Adicionar ao DOM
-        previewRef.current.appendChild(iframe);
-        
-        // Escrever o conteúdo no iframe após ele estar pronto
-        iframe.onload = () => {
-          if (iframe.contentDocument) {
-            iframe.contentDocument.open();
-            iframe.contentDocument.write(result);
-            iframe.contentDocument.close();
-            
-            console.log("Conteúdo HTML renderizado com sucesso no iframe");
-          }
-        };
-        
-        // Iniciar carregamento do iframe
-        iframe.srcdoc = '<html><head></head><body></body></html>';
-        
-      } catch (error) {
-        console.error("Erro ao renderizar HTML:", error);
-        
-        // Exibir mensagem de erro em caso de falha
-        if (previewRef.current) {
-          previewRef.current.innerHTML = `
-            <div class="p-4 text-center">
-              <h3 class="text-lg font-medium text-red-600">Erro ao renderizar a visualização</h3>
-              <p class="mt-2 text-sm text-gray-600">Tente abrir em uma nova janela.</p>
-            </div>
-          `;
+        if (!completeHTML.toLowerCase().includes('</html>')) {
+          completeHTML += '\n</html>';
         }
       }
+      
+      if (!completeHTML.toLowerCase().includes('<head')) {
+        const htmlTagMatch = completeHTML.match(/<html[^>]*>/i);
+        if (htmlTagMatch) {
+          const htmlTag = htmlTagMatch[0];
+          completeHTML = completeHTML.replace(
+            htmlTag, 
+            `${htmlTag}\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Preview Landing Page</title>\n</head>`
+          );
+        }
+      }
+      
+      if (!completeHTML.toLowerCase().includes('<body')) {
+        const headEndIndex = completeHTML.toLowerCase().indexOf('</head>');
+        if (headEndIndex !== -1) {
+          completeHTML = completeHTML.substring(0, headEndIndex + 7) + '\n<body>\n' + completeHTML.substring(headEndIndex + 7);
+          
+          if (!completeHTML.toLowerCase().includes('</body>')) {
+            const htmlEndIndex = completeHTML.toLowerCase().indexOf('</html>');
+            if (htmlEndIndex !== -1) {
+              completeHTML = completeHTML.substring(0, htmlEndIndex) + '\n</body>\n' + completeHTML.substring(htmlEndIndex);
+            }
+          }
+        }
+      }
+      
+      // Adicionar sandbox style para isolar CSS
+      const headEndIndex = completeHTML.toLowerCase().indexOf('</head>');
+      if (headEndIndex !== -1) {
+        const sandboxStyle = `
+          <style>
+            /* Sandbox reset para evitar conflitos de estilos */
+            html, body { height: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+            * { box-sizing: border-box; }
+          </style>
+        `;
+        completeHTML = completeHTML.substring(0, headEndIndex) + sandboxStyle + completeHTML.substring(headEndIndex);
+      }
+      
+      // Criar um blob URL e atribuir ao iframe
+      const blob = new Blob([completeHTML], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Atribuir URL ao iframe
+      iframe.src = blobUrl;
+      
+      // Configurar evento onload para lidar com erros e limpar recursos
+      iframe.onload = () => {
+        try {
+          // Verificar se o iframe carregou corretamente
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc) {
+            console.log('Preview carregado com sucesso');
+            // Adicionar script para capturar erros dentro do iframe
+            const errorScript = iframeDoc.createElement('script');
+            errorScript.textContent = `
+              window.onerror = function(message, source, lineno, colno, error) {
+                window.parent.postMessage({
+                  type: 'iframe-error',
+                  message: message,
+                  source: source,
+                  lineno: lineno
+                }, '*');
+                return true;
+              };
+            `;
+            iframeDoc.body.appendChild(errorScript);
+          }
+        } catch (error) {
+          console.error('Erro ao acessar iframe após carregamento:', error);
+        } finally {
+          // Sempre revogar o URL para evitar vazamentos de memória
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        }
+      };
+      
+      // Configurar evento de erro para o iframe
+      iframe.onerror = (event) => {
+        console.error('Erro ao carregar iframe:', event);
+        toast.error('Erro ao carregar a visualização. Tente outro método.');
+        // Revogar URL em caso de erro
+        URL.revokeObjectURL(blobUrl);
+      };
+      
+      // Adicionar listener para mensagens do iframe (para capturar erros)
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'iframe-error') {
+          console.error('Erro capturado no iframe:', event.data);
+          toast.error(`Erro no JavaScript da página: linha ${event.data.lineno}`);
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+      
+      // Limpar o listener quando o componente for desmontado
+      return () => {
+        window.removeEventListener('message', messageHandler);
+      };
+      
+    } catch (error) {
+      console.error('Erro ao usar Método 4 (Blob):', error);
+      toast.error("Erro ao aplicar método 4. Tente outro método de visualização.");
     }
-  }, [result, activeTab]);
+  };
+  
+  const applyMethod5 = () => {
+    try {
+      console.log('Aplicando método 5: innerHTML no iframe');
+      const iframe = previewIframeRef.current;
+      if (!iframe) return;
+      
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) return;
+      
+      // Processar o HTML para substituir os placeholders de imagem
+      const processedHTML = fixImagePlaceholders(result);
+      
+      iframeDoc.body.innerHTML = ''; // Limpar conteúdo atual
+      
+      // Extrair e adicionar estilos do head
+      const styleMatches = processedHTML.match(/<style[^>]*>([\s\S]*?)<\/style>/g);
+      if (styleMatches) {
+        styleMatches.forEach(styleTag => {
+          const styleElement = iframeDoc.createElement('style');
+          styleElement.textContent = styleTag.replace(/<style[^>]*>|<\/style>/g, '');
+          iframeDoc.head.appendChild(styleElement);
+        });
+      }
+      
+      // Extrair e adicionar scripts
+      const scriptMatches = processedHTML.match(/<script[^>]*>([\s\S]*?)<\/script>/g);
+      if (scriptMatches) {
+        scriptMatches.forEach(scriptTag => {
+          if (!scriptTag.includes('src=')) {
+            const scriptElement = iframeDoc.createElement('script');
+            scriptElement.textContent = scriptTag.replace(/<script[^>]*>|<\/script>/g, '');
+            iframeDoc.body.appendChild(scriptElement);
+          }
+        });
+      }
+      
+      // Extrair apenas o conteúdo do body
+      const bodyContent = processedHTML.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+      if (bodyContent && bodyContent[1]) {
+        iframeDoc.body.innerHTML = bodyContent[1];
+      } else {
+        // Se não conseguir extrair o body, tente colocar todo o HTML
+        iframeDoc.body.innerHTML = processedHTML;
+      }
+      
+      toast.success("Método 5 aplicado: innerHTML");
+    } catch (error) {
+      console.error('Erro ao usar Método 5:', error);
+      toast.error("Erro ao aplicar método 5");
+    }
+  };
+
+  // Melhorar a função fixImagePlaceholders para lidar com diferentes formatos de referência
+  const fixImagePlaceholders = (htmlContent: string): string => {
+    let fixedHtml = htmlContent;
+    
+    // Substituir referências no formato "Mídia X"
+    fixedHtml = fixedHtml.replace(/src=["']Mídia\s*(\d+)["']/gi, (match, num) => {
+      const index = parseInt(num) - 1;
+      if (images[index]) {
+        return `src="${images[index].preview}" alt="${images[index].description || `Imagem ${num}`}"`;
+      }
+      
+      // Imagem não encontrada, usar placeholder
+      return `src="https://placehold.co/600x400?text=Imagem+${num}" alt="Placeholder ${num}"`;
+    });
+    
+    // Substituir referências no formato "__IMG_X__"
+    fixedHtml = fixedHtml.replace(/src=["']__IMG_(\d+)__["']/gi, (match, num) => {
+      const index = parseInt(num) - 1;
+      if (images[index]) {
+        return `src="${images[index].preview}" alt="${images[index].description || `Imagem ${num}`}"`;
+      }
+      
+      // Imagem não encontrada, usar placeholder
+      return `src="https://placehold.co/600x400?text=Imagem+${num}" alt="Placeholder ${num}"`;
+    });
+    
+    // Verificar por tags de imagem sem src ou com src vazio
+    fixedHtml = fixedHtml.replace(/<img([^>]*)(src=["'][\s]*["']|src=["']#["']|src=["']undefined["']|src=["']null["']|(?!\s*src=))([^>]*)>/gi, (match, before, src, after) => {
+      // Gerar um placeholder genérico para imagens sem src
+      return `<img${before} src="https://placehold.co/600x400?text=Imagem" alt="Imagem placeholder"${after}>`;
+    });
+    
+    // Corrigir URLs relativas que podem estar causando problemas
+    fixedHtml = fixedHtml.replace(/src=["'](\.\/|\/)(images|img|assets)\/([^"']+)["']/gi, (match, prefix, folder, file) => {
+      // Substituir por URL de placeholder com nome do arquivo
+      return `src="https://placehold.co/600x400?text=${file.replace(/\.[^.]+$/, '')}"`;
+    });
+    
+    return fixedHtml;
+  };
+
+  // Adicionar método para carregar o iframe usando um blob
+  const loadIframeWithBlob = () => {
+    try {
+      if (!previewIframeRef.current || !result) return;
+      
+      console.log('Aplicando método Blob');
+      
+      let processedHTML = fixImagePlaceholders(result);
+      
+      const blob = new Blob([processedHTML], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+      previewIframeRef.current.src = blobUrl;
+      
+      // Limpar URL quando o iframe for carregado
+      previewIframeRef.current.onload = () => {
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      };
+      
+      toast.success("Visualização atualizada usando método Blob");
+    } catch (error) {
+      console.error('Erro ao usar método Blob:', error);
+      toast.error("Erro ao atualizar visualização");
+    }
+  };
+
+  // Aplicar método de visualização externa (diretamente no div)
+  const loadExternalPreview = () => {
+    try {
+      if (!externalPreviewRef.current || !result) return;
+      
+      console.log('Aplicando método HTML Externo');
+      
+      let processedHTML = fixImagePlaceholders(result);
+      externalPreviewRef.current.innerHTML = processedHTML;
+      setActiveTab("external");
+      
+      toast.success("Visualização externa atualizada");
+    } catch (error) {
+      console.error('Erro ao usar método HTML Externo:', error);
+      toast.error("Erro ao atualizar visualização externa");
+    }
+  };
 
   // Renderizar conteúdo da área de resultado
   const renderResultContent = () => {
     if (loading) {
       return (
-        <div className="relative flex-grow">
-          <div className="absolute top-0 left-0 right-0 bg-primary/10 text-primary p-3 rounded-t-md flex items-center justify-between z-10">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm font-medium">{loadingMessage}{loadingDots}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Pode levar até 3 minutos...
-            </div>
-          </div>
-          <div className="min-h-[500px] pt-16 flex flex-col items-center justify-center">
+        <div className="mt-8 border rounded-lg overflow-hidden">
+          <div className="p-8 flex flex-col items-center justify-center">
             <div className="w-full max-w-md">
+              <div className="flex items-center justify-center mb-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+                <h3 className="text-lg font-medium">{loadingMessage}{loadingDots}</h3>
+              </div>
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div className="h-full bg-primary animate-pulse" style={{width: '100%'}}></div>
               </div>
@@ -533,341 +835,423 @@ export default function LandingPagesPage() {
 
     if (!result) {
       return (
-        <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground h-full">
+        <div className="mt-8 border rounded-lg overflow-hidden">
+          <div className="p-8 flex flex-col items-center justify-center">
           <Code className="h-16 w-16 mb-4 opacity-20" />
-          <p>O código HTML da landing page aparecerá aqui</p>
-          <p className="text-xs mt-1">Preencha o formulário e clique em Gerar Landing Page</p>
+            <p className="text-center text-muted-foreground">O código HTML da landing page aparecerá aqui</p>
+            <p className="text-xs text-center mt-1 text-muted-foreground">Preencha o formulário e clique em Gerar Landing Page</p>
+          </div>
         </div>
       );
     }
 
-    if (activeTab === "code") {
       return (
-        <Textarea
-          value={result}
-          readOnly
-          className="min-h-[500px] font-mono text-sm resize-none border-0 bg-muted/30"
-        />
-      );
-    } else {
+      <div className="mt-8 border rounded-lg overflow-hidden">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+          <div className="flex items-center justify-between border-b px-4">
+            <TabsList className="grid grid-cols-3 h-12">
+              <TabsTrigger value="preview" className="flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                Visualização
+              </TabsTrigger>
+              <TabsTrigger value="external" className="flex items-center gap-1">
+                <Layout className="w-4 h-4" />
+                HTML Renderizado
+              </TabsTrigger>
+              <TabsTrigger value="code" className="flex items-center gap-1">
+                <Code className="w-4 h-4" />
+                Código HTML
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Botões de modo desktop/mobile */}
+            {activeTab === "preview" && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={toggleViewMode}
+                className="flex items-center"
+              >
+                {viewMode === "desktop" ? (
+                  <>
+                    <Smartphone className="h-4 w-4 mr-1" />
+                    <span>Mobile</span>
+                  </>
+                ) : (
+                  <>
+                    <Monitor className="h-4 w-4 mr-1" />
+                    <span>Desktop</span>
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          
+          <div className="p-4">
+            {activeTab === "preview" && (
+              <div className={cn(
+                "transition-all duration-300",
+                viewMode === "mobile" ? "max-w-[375px] mx-auto border border-gray-300 rounded-lg overflow-hidden" : "w-full"
+              )}>
+                <iframe 
+                  ref={previewIframeRef}
+                  className={cn(
+                    "w-full bg-white", 
+                    viewMode === "mobile" ? "h-[667px]" : "h-[800px]"
+                  )}
+                  title="Preview da Landing Page"
+                />
+              </div>
+            )}
+            
+            {activeTab === "external" && (
+              <div ref={externalPreviewRef} className="min-h-[500px] p-4 bg-white border rounded">
+                {/* Conteúdo HTML renderizado diretamente */}
+                {!result && <p className="text-muted-foreground">A visualização HTML será exibida aqui.</p>}
+              </div>
+            )}
+            
+            {activeTab === "code" && (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                  className="absolute top-2 right-2 z-10"
+                >
+                  <Copy className="h-4 w-4 mr-1" />
+                  Copiar
+                </Button>
+                <pre
+                  ref={htmlCodeRef}
+                  className="text-xs p-4 bg-slate-950 text-slate-50 rounded-md overflow-auto max-h-[800px]"
+                >
+                  {result || "O código HTML será exibido aqui."}
+                </pre>
+              </div>
+            )}
+          </div>
+        </Tabs>
+        
+        {showMethodsContainer && (
+          <div className="p-4 border-t bg-slate-50">
+            <h3 className="font-medium mb-2">Métodos de visualização</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Se estiver tendo problemas para visualizar a landing page, tente um dos métodos abaixo:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={applyMethod1}>
+                Método 1: document.write
+              </Button>
+              <Button variant="outline" size="sm" onClick={applyMethod2}>
+                Método 2: Data URL
+              </Button>
+              <Button variant="outline" size="sm" onClick={applyMethod3}>
+                Método 3: HTML Direto
+              </Button>
+              <Button variant="outline" size="sm" onClick={applyMethod4}>
+                Método 4: Objeto Blob
+              </Button>
+              <Button variant="outline" size="sm" onClick={applyMethod5}>
+                Método 5: innerHTML
+              </Button>
+              <Button variant="outline" size="sm" onClick={openInNewWindow} className="ml-auto">
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Abrir em nova aba
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {showDebugInfo && (
+          <div className="p-4 border-t bg-amber-50">
+            <h3 className="font-medium mb-2">Informações de depuração</h3>
+            <div className="text-sm">
+              <p><strong>Tamanho do HTML:</strong> {result?.length || 0} caracteres</p>
+              <p><strong>Imagens disponíveis:</strong> {images.length}</p>
+              <div className="mt-2 flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCopy}>
+                  <Copy className="h-4 w-4 mr-1" />
+                  Copiar HTML
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Baixar HTML
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Modificar a renderização dos controles de visualização
+  const renderResultActions = () => {
+    if (!result || loading) return null;
+    
       return (
-        <div className="flex flex-col h-full">
-          <div className="flex justify-end mb-2">
+      <div className="flex items-center justify-between mb-4 border-b pb-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as any)}
+          className="w-full"
+        >
+          <TabsList className="grid grid-cols-4 max-w-md">
+            <TabsTrigger value="preview">
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </TabsTrigger>
+            <TabsTrigger value="external">
+              <Layout className="h-4 w-4 mr-2" />
+              Externo
+            </TabsTrigger>
+            <TabsTrigger value="code">
+              <Code className="h-4 w-4 mr-2" />
+              Código
+            </TabsTrigger>
+            <TabsTrigger value="html">
+              <Code className="h-4 w-4 mr-2" />
+              HTML
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={toggleViewMode}
+            className="flex items-center hidden md:flex"
+          >
+            {viewMode === "desktop" ? (
+              <>
+                <Smartphone className="h-4 w-4 mr-1" />
+                <span>Mobile</span>
+              </>
+            ) : (
+              <>
+                <Monitor className="h-4 w-4 mr-1" />
+                <span>Desktop</span>
+              </>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard.writeText(result);
+              toast.success("HTML copiado para área de transferência");
+            }}
+            className="flex items-center"
+          >
+            <Copy className="h-4 w-4 mr-1" />
+            <span className="hidden md:inline">Copiar</span>
+          </Button>
+
             <Button
               variant="outline"
               size="sm"
               onClick={openInNewWindow}
-              className="h-7 gap-1"
+            className="flex items-center"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>Abrir em nova janela</span>
+            <ExternalLink className="h-4 w-4 mr-1" />
+            <span className="hidden md:inline">Nova Aba</span>
             </Button>
           </div>
-          <div 
-            ref={previewRef} 
-            className="min-h-[450px] overflow-auto border rounded p-1 bg-white w-full flex-grow"
-            style={{ height: 'calc(500px - 30px)', maxHeight: 'calc(500px - 30px)' }}
-          />
         </div>
       );
-    }
   };
   
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">IA de Landing Pages</h1>
-        <p className="text-muted-foreground">
-          Crie landing pages de alta conversão otimizadas para vender seu produto ou serviço.
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Formulário */}
-        <div className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border p-4 shadow-sm">
-            {/* Nicho */}
-            <div className="grid gap-2">
-              <Label htmlFor="niche">
-                Nicho <span className="text-red-500">*</span>
-              </Label>
-              <input
-                id="niche"
-                name="niche"
-                value={formData.niche}
+    <div className="container mx-auto py-6 space-y-8">
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="order-2 md:order-1 shadow-md rounded-lg border p-4 bg-white">
+            <h2 className="text-lg font-semibold mb-4">Gerar Landing Page</h2>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                {/* Campo de título */}
+                <div>
+                  <Label htmlFor="titulo">Título da Página</Label>
+                  <Textarea 
+                    id="titulo"
+                    name="titulo"
+                    placeholder="Ex: Soluções Inovadoras para seu Negócio"
+                    value={formData.titulo}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Emagrecimento, Marketing Digital, Finanças..."
+                    className="resize-none h-16"
                 required
-                disabled={loading}
               />
             </div>
             
-            {/* Produto */}
-            <div className="grid gap-2">
-              <Label htmlFor="product">
-                Produto <span className="text-red-500">*</span>
-              </Label>
-              <input
-                id="product"
-                name="product"
-                value={formData.product}
+                {/* Campo de objetivo */}
+                <div>
+                  <Label htmlFor="objetivo">Objetivo da Página</Label>
+                  <Textarea 
+                    id="objetivo"
+                    name="objetivo"
+                    placeholder="Ex: Captar leads para nossa solução de marketing digital"
+                    value={formData.objetivo}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Curso de Emagrecimento Saudável, Mentorias..."
+                    className="resize-none h-16"
                 required
-                disabled={loading}
               />
             </div>
             
-            {/* Upload de imagens */}
-            <div className="grid gap-2">
-              <Label>
-                Imagens do Produto/Serviço <span className="text-xs text-muted-foreground">(Opcional, máx. 5)</span>
-              </Label>
-              <input 
-                ref={imageInputRef}
-                type="file" 
-                accept="image/*" 
-                multiple 
-                onChange={handleImageChange}
-                className="hidden"
-                disabled={loading || images.length >= 5}
-              />
-              
-              {/* Botão de upload */}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={triggerFileInput}
-                disabled={loading || images.length >= 5}
-              >
-                <ImageIcon className="mr-2 h-4 w-4" />
-                {images.length === 0 
-                  ? "Fazer upload de imagens" 
-                  : `Adicionar mais imagens (${images.length}/5)`}
-              </Button>
-              
-              {/* Preview das imagens */}
-              {images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {images.map((img, index) => (
-                    <div key={index} className="relative group">
-                      <img 
-                        src={img.preview} 
-                        alt={`Imagem ${index + 1}`}
-                        className="h-20 w-full object-cover rounded border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remover imagem"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                {/* Campo de descrição */}
+                <div>
+                  <Label htmlFor="descricao">Descrição do Produto/Serviço</Label>
+                  <Textarea 
+                    id="descricao"
+                    name="descricao"
+                    placeholder="Descreva seu produto ou serviço em detalhes"
+                    value={formData.descricao}
+                    onChange={handleChange}
+                    className="resize-none h-24"
+                    required
+                  />
             </div>
             
-            {/* Benefícios */}
-            <div className="grid gap-2">
-              <Label>
-                Benefícios do Produto
-              </Label>
-              {formData.benefits.map((benefit, index) => (
-                <input
-                  key={index}
-                  value={benefit}
-                  onChange={(e) => handleBenefitChange(index, e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder={`Benefício ${index + 1}`}
-                  disabled={loading}
-                />
-              ))}
-              {formData.benefits.length < 6 && !loading && (
-                <button
-                  type="button"
-                  onClick={addBenefit}
-                  className="text-sm text-primary hover:underline"
-                >
-                  + Adicionar mais um benefício
-                </button>
-              )}
+                {/* Tom de comunicação */}
+                <div>
+                  <Label htmlFor="tom">Tom de Comunicação</Label>
+                  <select
+                    id="tom"
+                    name="tom"
+                    value={formData.tom}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="profissional">Profissional</option>
+                    <option value="casual">Casual</option>
+                    <option value="amigavel">Amigável</option>
+                    <option value="formal">Formal</option>
+                    <option value="tecnico">Técnico</option>
+                  </select>
             </div>
             
-            {/* Público-alvo */}
-            <div className="grid gap-2">
-              <Label htmlFor="targetAudience">
-                Público-alvo
-              </Label>
-              <input
-                id="targetAudience"
-                name="targetAudience"
-                value={formData.targetAudience}
+                {/* CTA principal */}
+                <div>
+                  <Label htmlFor="cta">Call-to-Action Principal</Label>
+                  <Textarea 
+                    id="cta"
+                    name="cta"
+                    placeholder="Ex: Agende uma demonstração gratuita"
+                    value={formData.cta}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Mulheres entre 30-50 anos interessadas em emagrecimento"
-                disabled={loading}
+                    className="resize-none h-16"
               />
             </div>
             
-            {/* Call-to-action */}
-            <div className="grid gap-2">
-              <Label htmlFor="callToAction">
-                Call-to-action
-              </Label>
-              <input
-                id="callToAction"
-                name="callToAction"
-                value={formData.callToAction}
+                {/* Elementos */}
+                <div>
+                  <Label htmlFor="elementos">Elementos a Incluir</Label>
+                  <Textarea 
+                    id="elementos"
+                    name="elementos"
+                    placeholder="Ex: Formulário de contato, seção de benefícios, depoimentos"
+                    value={formData.elementos}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: Comprar Agora, Garantir Acesso, Inscrever-se..."
-                disabled={loading}
+                    className="resize-none h-16"
               />
             </div>
             
-            {/* Preço/Oferta */}
-            <div className="grid gap-2">
-              <Label htmlFor="pricing">
-                Informações de Preço/Oferta
-              </Label>
-              <input
-                id="pricing"
-                name="pricing"
-                value={formData.pricing}
+                {/* Cores */}
+                <div>
+                  <Label htmlFor="cores">Cores Principais</Label>
+                  <Textarea 
+                    id="cores"
+                    name="cores"
+                    placeholder="Ex: Azul escuro (#0c4a6e), verde (#10b981) e branco"
+                    value={formData.cores}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Ex: De R$ 997 por apenas R$ 497"
-                disabled={loading}
+                    className="resize-none h-16"
               />
             </div>
             
             {/* Estilo */}
-            <div className="grid gap-2">
-              <Label htmlFor="style">
-                Estilo Visual
-              </Label>
+                <div>
+                  <Label htmlFor="estilo">Estilo de Design</Label>
               <select
-                id="style"
-                name="style"
-                value={formData.style}
+                    id="estilo"
+                    name="estilo"
+                    value={formData.estilo}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                disabled={loading}
+                    className="w-full p-2 border rounded-md"
               >
-                <option value="minimalista">Minimalista</option>
                 <option value="moderno">Moderno</option>
-                <option value="colorido">Colorido</option>
+                    <option value="minimalista">Minimalista</option>
                 <option value="corporativo">Corporativo</option>
-                <option value="elegante">Elegante</option>
+                    <option value="criativo">Criativo</option>
+                    <option value="tecnologico">Tecnológico</option>
               </select>
             </div>
             
-            {/* Testimonials checkbox */}
-            <div className="flex items-center space-x-2">
+                {/* Upload de imagens */}
+                <div>
+                  <Label>Imagens (opcional, até 5)</Label>
+                  <div className="mt-1">
               <input
-                type="checkbox"
-                id="testimonials"
-                name="testimonials"
-                checked={formData.testimonials}
-                onChange={handleCheckboxChange}
-                className="rounded border-input h-4 w-4"
-                disabled={loading}
-              />
-              <Label htmlFor="testimonials" className="text-sm cursor-pointer">
-                Incluir seção para depoimentos
-              </Label>
+                      ref={imageInputRef} 
+                      type="file" 
+                      accept="image/*" 
+                      multiple 
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={loading || images.length >= 5}
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={loading || images.length >= 5}
+                    >
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      {images.length === 0 ? "Adicionar imagens" : `Adicionar mais imagens (${images.length}/5)`}
+                    </Button>
             </div>
             
-            {/* Botão de envio */}
-            <div className="flex gap-2">
+                  {/* Lista de imagens com descrições */}
+                  {images.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {images.map((img, index) => renderImageItem(img, index))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Botão de geração */}
               <Button
                 type="submit"
+                  className="w-full"
                 disabled={loading}
-                className={cn(
-                  "flex items-center justify-center gap-2 w-full",
-                  loading && "opacity-70 cursor-not-allowed"
-                )}
               >
-                {loading ? <Loading /> : (
+                  {loading ? (
                   <>
-                    <Layout className="h-4 w-4" />
-                    Gerar Landing Page
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Gerando...
                   </>
+                  ) : (
+                    "Gerar Landing Page"
                 )}
               </Button>
             </div>
           </form>
         </div>
 
-        {/* Resultado */}
-        <div className="space-y-4">
-          <div className="rounded-lg border p-4 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Resultado</h3>
-              
-              {result && !loading && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopy}
-                    className="h-8 gap-1"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Copiar</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDownload}
-                    className="h-8 gap-1"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Baixar</span>
-                  </Button>
-                </div>
-              )}
+          <div className="order-1 md:order-2 shadow-md rounded-lg border bg-white overflow-hidden">
+            <div className="bg-muted p-4 border-b">
+              <h2 className="text-lg font-semibold">Resultado</h2>
             </div>
 
-            {result && !loading && (
-              <Tabs 
-                defaultValue="code" 
-                className="w-full mb-4"
-                value={activeTab}
-                onValueChange={(value) => setActiveTab(value as "code" | "preview")}
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="code" className="flex items-center gap-1">
-                    <Code className="h-4 w-4" />
-                    <span>Código</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="preview" className="flex items-center gap-1">
-                    <Eye className="h-4 w-4" />
-                    <span>Visualização</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
+            {renderResultActions()}
             
             <div className="flex-grow">
               {renderResultContent()}
             </div>
-          </div>
-
-          <div className="bg-primary/10 rounded-lg p-4 text-sm">
-            <h3 className="font-medium mb-2">💡 Dicas para landing pages eficazes:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Mantenha o foco em um único objetivo/CTA</li>
-              <li>Destaque os benefícios, não apenas características</li>
-              <li>Inclua elementos de prova social (depoimentos)</li>
-              <li>Use gatilhos de escassez e urgência (quando aplicável)</li>
-            </ul>
           </div>
         </div>
       </div>
