@@ -66,7 +66,7 @@ Requisitos técnicos obrigatórios:
 - Use gradientes modernos em pelo menos 2-3 elementos
 - Garanta design totalmente responsivo para mobile e desktop
 
-Forneça um código HTML completo e pronto para uso, incluindo todos os estilos CSS embutidos (na tag <style>) e scripts necessários.` 
+IMPORTANTE: Gere apenas o código HTML. Não inclua comentários, marcações de markdown como \`\`\`html ou \`\`\`, ou qualquer explicação. Forneça SOMENTE o código HTML limpo que começa com <!DOCTYPE html>.` 
             },
             { role: 'user', content: prompt }
           ],
@@ -89,10 +89,24 @@ Forneça um código HTML completo e pronto para uso, incluindo todos os estilos 
       
       let content = data.choices[0].message.content;
       
-      // Remover quaisquer tags de markdown (```html e ```) se existirem
+      // Remover tags de markdown e comentários
       content = content.replace(/^```html\s*/i, '');
       content = content.replace(/^```(html|)\s*/i, '');
       content = content.replace(/\s*```\s*$/i, '');
+      
+      // Remover possíveis títulos em formato markdown (# Título)
+      content = content.replace(/^#\s+.*$/m, '');
+      
+      // Remover qualquer linha que comece com # (comentários ou headers de markdown)
+      content = content.replace(/^#.*$/gm, '');
+      
+      // Garantir que o HTML começa com <!DOCTYPE html>
+      if (!content.trim().toLowerCase().startsWith('<!doctype html>')) {
+        content = '<!DOCTYPE html>\n' + content.trim();
+      }
+      
+      // Remover qualquer comentário HTML
+      content = content.replace(/<!--[\s\S]*?-->/g, '');
       
       return content;
     } catch (error) {
@@ -230,204 +244,327 @@ function sanitizeAndCompleteHTML(html: string): string {
     return `src="__IMG_${num}__" alt="Imagem do produto ${num}" class="img-fluid"`;
   });
   
-  // Verificar e adicionar seções essenciais que podem estar faltando
-  const bodyContent = sanitizedHtml.toLowerCase();
+  // Corrigir possíveis links quebrados em imagens
+  sanitizedHtml = sanitizedHtml.replace(/<img[^>]+src="([^"]+)"[^>]*>/gi, (match, src) => {
+    if (src.startsWith('http') || src.startsWith('__IMG_') || src.startsWith('data:')) {
+      return match;
+    }
+    return match.replace(src, `https://placehold.co/600x400?text=${encodeURIComponent(src.substring(0, 20))}`);
+  });
   
-  // Verificar se existe um rodapé
-  if (!bodyContent.includes('<footer') && bodyEndIndex !== -1) {
-    const footerHTML = `
-    <footer class="bg-dark text-white py-4 mt-5">
-      <div class="container">
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <h5>Sobre Nós</h5>
-            <p class="text-muted">Somos uma empresa comprometida com a excelência e qualidade em todos os nossos produtos e serviços.</p>
+  // Extrair o conteúdo do body para manipulação
+  const bodyStartTagPos = sanitizedHtml.toLowerCase().indexOf('<body');
+  const bodyStartContentPos = sanitizedHtml.indexOf('>', bodyStartTagPos) + 1;
+  const bodyEndTagPos = sanitizedHtml.toLowerCase().indexOf('</body>');
+  
+  if (bodyStartTagPos !== -1 && bodyEndTagPos !== -1) {
+    let bodyHTML = sanitizedHtml.substring(bodyStartContentPos, bodyEndTagPos);
+    
+    // 1. Verificar problemas com seções sobrepostas
+    
+    // 1.1 Verificar se o FAQ está dentro do rodapé ou outra seção onde não deveria estar
+    const footerStartPos = bodyHTML.toLowerCase().indexOf('<footer');
+    
+    if (footerStartPos !== -1) {
+      const footerHTML = bodyHTML.substring(footerStartPos);
+      
+      // Se o footer contém uma seção FAQ, precisamos extraí-la e movê-la para antes do footer
+      if (footerHTML.toLowerCase().includes('id="faq"') || 
+          footerHTML.toLowerCase().includes('class="faq"') ||
+          footerHTML.toLowerCase().includes('>faq<')) {
+        
+        // Criar uma seção FAQ adequada antes do footer
+        const faqHTML = `
+<section id="faq" class="py-5 bg-light">
+  <div class="container">
+    <h2 class="text-center mb-5">Perguntas Frequentes</h2>
+    <div class="accordion" id="accordionFaq">
+      <div class="accordion-item" data-aos="fade-up">
+        <h2 class="accordion-header">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
+            Qual a garantia do produto?
+          </button>
+        </h2>
+        <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            Oferecemos garantia completa de satisfação. Se você não estiver completamente satisfeito, pode solicitar reembolso em até 30 dias.
           </div>
-          <div class="col-md-4 mb-3">
-            <h5>Links Rápidos</h5>
-            <ul class="list-unstyled">
-              <li><a href="#" class="text-decoration-none text-light">Início</a></li>
-              <li><a href="#beneficios" class="text-decoration-none text-light">Benefícios</a></li>
-              <li><a href="#depoimentos" class="text-decoration-none text-light">Depoimentos</a></li>
-              <li><a href="#contato" class="text-decoration-none text-light">Contato</a></li>
-            </ul>
-          </div>
-          <div class="col-md-4 mb-3">
-            <h5>Contato</h5>
-            <ul class="list-unstyled text-muted">
-              <li><i class="fas fa-envelope me-2"></i> contato@empresa.com</li>
-              <li><i class="fas fa-phone me-2"></i> (11) 9999-9999</li>
-              <li><i class="fas fa-map-marker-alt me-2"></i> São Paulo, SP</li>
-            </ul>
-            <div class="mt-3">
-              <a href="#" class="text-light me-2"><i class="fab fa-facebook fa-lg"></i></a>
-              <a href="#" class="text-light me-2"><i class="fab fa-instagram fa-lg"></i></a>
-              <a href="#" class="text-light me-2"><i class="fab fa-linkedin fa-lg"></i></a>
-              <a href="#" class="text-light"><i class="fab fa-whatsapp fa-lg"></i></a>
-            </div>
-          </div>
-        </div>
-        <div class="text-center mt-4">
-          <p class="mb-0">&copy; ${new Date().getFullYear()} Todos os direitos reservados.</p>
         </div>
       </div>
-    </footer>
-    `;
-    sanitizedHtml = sanitizedHtml.substring(0, bodyEndIndex) + footerHTML + sanitizedHtml.substring(bodyEndIndex);
-  }
-  
-  // Verificar se existe uma seção de depoimentos
-  if (!bodyContent.includes('depoimentos') && !bodyContent.includes('testimonials') && bodyEndIndex !== -1) {
-    // Encontrar um bom local para inserir os depoimentos (antes do rodapé ou no final do conteúdo)
-    const footerIndex = sanitizedHtml.toLowerCase().indexOf('<footer');
-    const insertPosition = footerIndex !== -1 ? footerIndex : bodyEndIndex;
+      <div class="accordion-item" data-aos="fade-up">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
+            Como funciona o processo de compra?
+          </button>
+        </h2>
+        <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            O processo é simples e seguro. Basta escolher o produto desejado, adicionar ao carrinho e seguir para o checkout. Aceitamos diversas formas de pagamento.
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item" data-aos="fade-up">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
+            Qual o prazo de entrega?
+          </button>
+        </h2>
+        <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            O prazo de entrega varia de 7 a 10 dias úteis, dependendo da sua localização. Enviamos por transportadoras de confiança para garantir que seu produto chegue em perfeitas condições.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>`;
+
+        // Remover menções ao FAQ do footer (de forma simplificada)
+        let cleanedFooterHTML = footerHTML
+          .replace(/<section[^>]*id=["']faq["'][^>]*>[\s\S]*?<\/section>/gi, '')
+          .replace(/<div[^>]*id=["']faq["'][^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(/<h2[^>]*>[\s\S]*?faq[\s\S]*?<\/h2>/gi, '')
+          .replace(/<h3[^>]*>[\s\S]*?faq[\s\S]*?<\/h3>/gi, '')
+          .replace(/<h4[^>]*>[\s\S]*?faq[\s\S]*?<\/h4>/gi, '');
+        
+        // Recompor o body com o FAQ antes do footer
+        bodyHTML = bodyHTML.substring(0, footerStartPos) + faqHTML + cleanedFooterHTML;
+      }
+    }
     
-    const depoimentosHTML = `
-    <section id="depoimentos" class="py-5 bg-light">
-      <div class="container">
-        <h2 class="text-center mb-5">O que nossos clientes dizem</h2>
-        <div class="row">
-          <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body">
+    // 1.2 Verificar se existe uma seção de depoimentos
+    if (!bodyHTML.toLowerCase().includes('id="depoimentos"') && 
+        !bodyHTML.toLowerCase().includes('id="testimonials"') &&
+        !bodyHTML.toLowerCase().includes('class="testimonials"')) {
+      
+      // Encontrar um bom local para inserir os depoimentos (antes do rodapé ou FAQ)
+      let insertPosition = bodyHTML.length;
+      const footerPos = bodyHTML.toLowerCase().indexOf('<footer');
+      const faqPos = bodyHTML.toLowerCase().indexOf('id="faq"');
+      
+      if (footerPos !== -1) {
+        insertPosition = footerPos;
+      } else if (faqPos !== -1) {
+        // Encontrar o início da seção que contém o FAQ
+        const faqSectionStart = bodyHTML.toLowerCase().lastIndexOf('<section', faqPos);
+        if (faqSectionStart !== -1) {
+          insertPosition = faqSectionStart;
+        }
+      }
+      
+      const depoimentosHTML = `
+<section id="depoimentos" class="py-5 bg-light">
+  <div class="container">
+    <h2 class="text-center mb-5">O que nossos clientes dizem</h2>
+    <div class="row">
+      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-primary rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
+                <i class="fas fa-user"></i>
+              </div>
+              <div>
+                <h5 class="card-title mb-0">Carlos Silva</h5>
+                <small class="text-muted">Cliente desde 2021</small>
+              </div>
+            </div>
+            <div class="text-warning mb-2">
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+            </div>
+            <p class="card-text">"Este produto superou todas as minhas expectativas. A qualidade é excepcional e o atendimento ao cliente é impecável. Recomendo fortemente!"</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-success rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
+                <i class="fas fa-user"></i>
+              </div>
+              <div>
+                <h5 class="card-title mb-0">Maria Oliveira</h5>
+                <small class="text-muted">Cliente desde 2022</small>
+              </div>
+            </div>
+            <div class="text-warning mb-2">
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star-half-alt"></i>
+            </div>
+            <p class="card-text">"Estou impressionada com os resultados obtidos. Já testei vários produtos similares no mercado, mas este é de longe o melhor. Vale cada centavo investido!"</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-info rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
+                <i class="fas fa-user"></i>
+              </div>
+              <div>
+                <h5 class="card-title mb-0">Pedro Santos</h5>
+                <small class="text-muted">Cliente desde 2020</small>
+              </div>
+            </div>
+            <div class="text-warning mb-2">
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i>
+            </div>
+            <p class="card-text">"Melhor investimento que fiz. Os resultados apareceram rapidamente e o suporte está sempre disponível para ajudar. Recomendo!"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+`;
+      
+      // Inserir a seção de depoimentos
+      bodyHTML = bodyHTML.substring(0, insertPosition) + depoimentosHTML + bodyHTML.substring(insertPosition);
+    }
+    
+    // 1.3 Verificar se existe um rodapé
+    if (!bodyHTML.toLowerCase().includes('<footer')) {
+      const footerHTML = `
+<footer class="bg-dark text-white py-4 mt-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <h5>Sobre Nós</h5>
+        <p class="text-muted">Somos uma empresa comprometida com a excelência e qualidade em todos os nossos produtos e serviços.</p>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h5>Links Rápidos</h5>
+        <ul class="list-unstyled">
+          <li><a href="#" class="text-decoration-none text-light">Início</a></li>
+          <li><a href="#beneficios" class="text-decoration-none text-light">Benefícios</a></li>
+          <li><a href="#depoimentos" class="text-decoration-none text-light">Depoimentos</a></li>
+          <li><a href="#contato" class="text-decoration-none text-light">Contato</a></li>
+        </ul>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h5>Contato</h5>
+        <ul class="list-unstyled text-muted">
+          <li><i class="fas fa-envelope me-2"></i> contato@empresa.com</li>
+          <li><i class="fas fa-phone me-2"></i> (11) 9999-9999</li>
+          <li><i class="fas fa-map-marker-alt me-2"></i> São Paulo, SP</li>
+        </ul>
+        <div class="mt-3">
+          <a href="#" class="text-light me-2"><i class="fab fa-facebook fa-lg"></i></a>
+          <a href="#" class="text-light me-2"><i class="fab fa-instagram fa-lg"></i></a>
+          <a href="#" class="text-light me-2"><i class="fab fa-linkedin fa-lg"></i></a>
+          <a href="#" class="text-light"><i class="fab fa-whatsapp fa-lg"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="text-center mt-4">
+      <p class="mb-0">&copy; ${new Date().getFullYear()} Todos os direitos reservados.</p>
+    </div>
+  </div>
+</footer>
+`;
+      bodyHTML += footerHTML;
+    }
+    
+    // 1.4 Verificar se existe uma seção de FAQ
+    if (!bodyHTML.toLowerCase().includes('id="faq"') && 
+        !bodyHTML.toLowerCase().includes('class="faq"')) {
+      
+      let insertPosition = bodyHTML.length;
+      const footerPos = bodyHTML.toLowerCase().indexOf('<footer');
+      
+      if (footerPos !== -1) {
+        insertPosition = footerPos;
+      }
+      
+      const faqHTML = `
+<section id="faq" class="py-5">
+  <div class="container">
+    <h2 class="text-center mb-5">Perguntas Frequentes</h2>
+    <div class="accordion" id="accordionFaq">
+      <div class="accordion-item" data-aos="fade-up" data-aos-delay="100">
+        <h2 class="accordion-header">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
+            Quais as formas de pagamento aceitas?
+          </button>
+        </h2>
+        <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            Aceitamos cartões de crédito, boleto bancário, PIX e transferência bancária. Para cartões, oferecemos parcelamento em até 12 vezes com juros.
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item" data-aos="fade-up" data-aos-delay="200">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
+            Como funciona a garantia do produto?
+          </button>
+        </h2>
+        <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            Todos os nossos produtos possuem garantia de 12 meses contra defeitos de fabricação. Além disso, oferecemos 30 dias de garantia de satisfação - se não ficar satisfeito, devolvemos seu dinheiro.
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item" data-aos="fade-up" data-aos-delay="300">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
+            Como obter suporte técnico?
+          </button>
+        </h2>
+        <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
+          <div class="accordion-body">
+            Nossa equipe de suporte técnico está disponível de segunda a sexta, das 9h às 18h, através do telefone, email ou chat ao vivo no site. Você também pode agendar uma consulta personalizada.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+`;
+      
+      bodyHTML = bodyHTML.substring(0, insertPosition) + faqHTML + bodyHTML.substring(insertPosition);
+    }
+    
+    // Corrigir problemas específicos de imagens nos depoimentos
+    if (bodyHTML.toLowerCase().includes('id="depoimentos"') || bodyHTML.toLowerCase().includes('id="testimonials"')) {
+      // Se as avaliações não têm imagens, adicionar ícones de usuário
+      bodyHTML = bodyHTML.replace(
+        /<div[^>]*class=["'][^"']*card[^"']*["'][^>]*>[\s\S]*?<div[^>]*class=["'][^"']*card-body[^"']*["'][^>]*>/gi,
+        match => {
+          if (!match.includes('<img') && !match.includes('fa-user')) {
+            return match.replace(
+              /<div[^>]*class=["'][^"']*card-body[^"']*["'][^>]*>/,
+              `<div class="card-body">
                 <div class="d-flex align-items-center mb-3">
                   <div class="bg-primary rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
                     <i class="fas fa-user"></i>
                   </div>
                   <div>
-                    <h5 class="card-title mb-0">Carlos Silva</h5>
-                    <small class="text-muted">Cliente desde 2021</small>
+                    <h5 class="card-title mb-0">Cliente Satisfeito</h5>
                   </div>
-                </div>
-                <div class="text-warning mb-2">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="card-text">"Este produto superou todas as minhas expectativas. A qualidade é excepcional e o atendimento ao cliente é impecável. Recomendo fortemente!"</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                  <div class="bg-success rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
-                    <i class="fas fa-user"></i>
-                  </div>
-                  <div>
-                    <h5 class="card-title mb-0">Maria Oliveira</h5>
-                    <small class="text-muted">Cliente desde 2022</small>
-                  </div>
-                </div>
-                <div class="text-warning mb-2">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star-half-alt"></i>
-                </div>
-                <p class="card-text">"Estou impressionada com os resultados obtidos. Já testei vários produtos similares no mercado, mas este é de longe o melhor. Vale cada centavo investido!"</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                  <div class="bg-info rounded-circle text-white d-flex align-items-center justify-content-center me-3" style="width:50px;height:50px">
-                    <i class="fas fa-user"></i>
-                  </div>
-                  <div>
-                    <h5 class="card-title mb-0">Pedro Santos</h5>
-                    <small class="text-muted">Cliente desde 2020</small>
-                  </div>
-                </div>
-                <div class="text-warning mb-2">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="card-text">"Melhor investimento que fiz para meu negócio. Os resultados apareceram rapidamente e o suporte técnico está sempre disponível para ajudar. Recomendo!"</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-    `;
+                </div>`
+            );
+          }
+          return match;
+        }
+      );
+    }
     
-    sanitizedHtml = sanitizedHtml.substring(0, insertPosition) + depoimentosHTML + sanitizedHtml.substring(insertPosition);
-  }
-  
-  // Verificar se existe uma seção de FAQ
-  if (!bodyContent.includes('faq') && !bodyContent.includes('perguntas') && bodyEndIndex !== -1) {
-    const footerIndex = sanitizedHtml.toLowerCase().indexOf('<footer');
-    const insertPosition = footerIndex !== -1 ? footerIndex : bodyEndIndex;
-    
-    const faqHTML = `
-    <section id="faq" class="py-5">
-      <div class="container">
-        <h2 class="text-center mb-5">Perguntas Frequentes</h2>
-        <div class="accordion" id="accordionFaq">
-          <div class="accordion-item" data-aos="fade-up" data-aos-delay="100">
-            <h2 class="accordion-header">
-              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
-                Quanto tempo leva para ver resultados?
-              </button>
-            </h2>
-            <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#accordionFaq">
-              <div class="accordion-body">
-                A maioria dos nossos clientes começa a ver resultados nas primeiras semanas de uso. No entanto, os resultados podem variar de pessoa para pessoa, dependendo de vários fatores individuais.
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item" data-aos="fade-up" data-aos-delay="200">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
-                Existe garantia de satisfação?
-              </button>
-            </h2>
-            <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
-              <div class="accordion-body">
-                Sim! Oferecemos garantia de 30 dias. Se você não estiver satisfeito com o produto/serviço, pode solicitar reembolso total dentro deste período.
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item" data-aos="fade-up" data-aos-delay="300">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
-                Como funciona o suporte ao cliente?
-              </button>
-            </h2>
-            <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
-              <div class="accordion-body">
-                Nossa equipe de suporte está disponível de segunda a sexta, das 8h às 18h, por telefone, e-mail ou chat. Nos finais de semana, oferecemos suporte por e-mail com resposta em até 24 horas.
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item" data-aos="fade-up" data-aos-delay="400">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4">
-                Quais formas de pagamento são aceitas?
-              </button>
-            </h2>
-            <div id="collapse4" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
-              <div class="accordion-body">
-                Aceitamos cartões de crédito, boleto bancário, PIX e transferência bancária. Oferecemos também opções de parcelamento em até 12 vezes no cartão.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-    `;
-    
-    sanitizedHtml = sanitizedHtml.substring(0, insertPosition) + faqHTML + sanitizedHtml.substring(insertPosition);
+    // Reconstruir o HTML com o body corrigido
+    sanitizedHtml = sanitizedHtml.substring(0, bodyStartContentPos) + bodyHTML + sanitizedHtml.substring(bodyEndTagPos);
   }
   
   return sanitizedHtml;
@@ -544,104 +681,108 @@ function sanitizeHTML(html: string): string {
   return cleanedHtml;
 }
 
-export async function POST(request: Request) {
-  const startTime = performance.now();
+// Função auxiliar para extrair uma seção específica do HTML
+function extractSection(html: string, identifier: string, tag: string = 'section'): string | null {
+  const lowerHtml = html.toLowerCase();
+  const identifierPos = lowerHtml.indexOf(identifier);
   
-  try {
-    // Parse dados do formulário 
-    const formData = await request.json();
-    const { titulo, objetivo, descricao, tom, cta, elementos, cores, estilo, images } = formData;
+  if (identifierPos === -1) return null;
+  
+  // Encontrar a tag que contém o identificador
+  let startPos = lowerHtml.lastIndexOf(`<${tag}`, identifierPos);
+  if (startPos === -1) return null;
+  
+  // Encontrar o fechamento da tag
+  let tagCount = 1;
+  let endPos = startPos;
+  
+  while (tagCount > 0 && endPos < lowerHtml.length) {
+    const closeTagPos = lowerHtml.indexOf(`</${tag}>`, endPos + 1);
+    const openTagPos = lowerHtml.indexOf(`<${tag}`, endPos + 1);
     
-    console.log("Recebido pedido de landing page:", { titulo, objetivo });
-    console.log(`${images?.length || 0} imagens recebidas`);
+    if (closeTagPos === -1) break;
     
-    // Obter o token da API DeepSeek
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      throw new Error("API key não configurada.");
+    if (openTagPos !== -1 && openTagPos < closeTagPos) {
+      tagCount++;
+      endPos = openTagPos;
+    } else {
+      tagCount--;
+      endPos = closeTagPos;
     }
+  }
+  
+  if (tagCount === 0) {
+    return html.substring(startPos, endPos + tag.length + 3); // +3 para incluir "</" e ">"
+  }
+  
+  return null;
+}
+
+// Função para limpar comentários e marcações markdown do HTML
+function cleanMarkdownAndComments(html: string): string {
+  // Remover blocos de código markdown
+  let cleanedHtml = html.replace(/```html[\s\S]*?```/g, '');
+  cleanedHtml = cleanedHtml.replace(/```[\s\S]*?```/g, '');
+  
+  // Remover títulos markdown (# Título)
+  cleanedHtml = cleanedHtml.replace(/^#+ .*$/gm, '');
+  
+  // Remover comentários HTML
+  cleanedHtml = cleanedHtml.replace(/<!--[\s\S]*?-->/g, '');
+  
+  // Remover anotações markdown
+  cleanedHtml = cleanedHtml.replace(/\[.*?\]\(.*?\)/g, '');
+  
+  // Remover backticks
+  cleanedHtml = cleanedHtml.replace(/`([^`]*)`/g, '$1');
+  
+  // Remover marcadores de lista
+  cleanedHtml = cleanedHtml.replace(/^- /gm, '');
+  cleanedHtml = cleanedHtml.replace(/^\* /gm, '');
+  
+  // Remover linhas vazias consecutivas
+  cleanedHtml = cleanedHtml.replace(/\n\s*\n\s*\n/g, '\n\n');
+  
+  return cleanedHtml;
+}
+
+export async function POST(request: Request) {
+  try {
+    const startTime = performance.now();
+    const data = await request.json();
+    const { prompt, user_content, images } = data;
     
-    // Construir o prompt para a API
-    const prompt = `
-Crie uma landing page completa e moderna para o seguinte produto/serviço:
+    // Validar dados de entrada
+    if (!prompt || prompt.trim().length === 0) {
+      return NextResponse.json({ error: 'Prompt não fornecido' }, { status: 400 });
+    }
 
-TÍTULO: ${titulo || ""}
-
-OBJETIVO: ${objetivo || ""}
-
-DESCRIÇÃO DETALHADA: ${descricao || ""}
-
-TOM DE COMUNICAÇÃO: ${tom || "profissional"}
-
-CALL-TO-ACTION PRINCIPAL: ${cta || ""}
-
-ELEMENTOS A INCLUIR: ${elementos || "Cabeçalho, Hero section, Benefícios, Funcionalidades, Depoimentos, FAQ, Formulário de contato, Rodapé"}
-
-CORES PRINCIPAIS: ${cores || "Use cores modernas que combinem com o objetivo do produto/serviço"}
-
-ESTILO VISUAL: ${estilo || "moderno"}
-
-IMAGENS DISPONÍVEIS:
-${images?.map((img: any, index: number) => `Mídia ${index + 1}: ${img.description || `Imagem ${index + 1}`}`).join('\n') || "Não há imagens disponíveis. Use placeholders adequados."}
-
-Crie uma landing page HTML5 completa, moderna e responsiva com todos os elementos necessários.
-A página DEVE incluir:
-- Cabeçalho com logo e menu de navegação
-- Seção hero com título impactante e CTA principal
-- Seção de benefícios/recursos em formato visual atraente (pelo menos 3-4 benefícios)
-- Seção de depoimentos com pelo menos 3 depoimentos fictícios
-- Seção "Sobre nós" ou informativa sobre a empresa/serviço
-- Seção de preços/planos (se aplicável)
-- Formulário de contato ou captura de leads funcionais
-- Seção FAQ com pelo menos 4-5 perguntas comuns
-- Rodapé completo com links de navegação, contato e redes sociais
-- Design totalmente responsivo para celulares, tablets e desktop
-
-Use as imagens disponíveis nos locais mais adequados usando: <img src="Mídia X" alt="Descrição">
-Por exemplo: <img src="Mídia 1" alt="Imagem principal do produto">
-
-IMPORTANTE:
-- Use Bootstrap 5 para componentes e layout responsivo
-- Adicione efeitos de animação AOS (Animate On Scroll)
-- Use FontAwesome para ícones
-- Adicione estilos CSS personalizados para criar uma aparência única e profissional
-- Inclua JavaScript para interações como validação de formulários, sliders, etc.
-- Certifique-se de que todos os links e botões tenham efeitos de hover
-- Use gradientes, sombras e efeitos visuais modernos
-
-Gere um código HTML completo e pronto para uso, incluindo todos os estilos CSS e scripts JavaScript necessários.`;
-
-    // Chamar a API DeepSeek
-    const result = await callDeepSeekAPI(prompt);
+    // Gerar HTML
+    const html = await callDeepSeekAPI(prompt);
     
-    // Sanitizar e completar o HTML gerado
-    const sanitizedHtml = sanitizeAndCompleteHTML(result);
+    // Limpar markdown e comentários
+    const cleanedHtml = cleanMarkdownAndComments(html);
     
-    // Capturar tempo total de processamento
+    // Garantir que o HTML está completo e tem as seções necessárias
+    const sanitizedHtml = sanitizeAndCompleteHTML(cleanedHtml);
+    
+    // Medir o tempo total de processamento
     const endTime = performance.now();
-    const timeElapsed = (endTime - startTime) / 1000; // em segundos
+    const processingTime = (endTime - startTime) / 1000; // em segundos
     
-    console.log(`Landing page gerada em ${timeElapsed.toFixed(2)} segundos`);
-    
-    // Retornar o HTML da landing page
     return NextResponse.json({ 
-      result: sanitizedHtml,
-      processingTime: timeElapsed.toFixed(2)
+      html: sanitizedHtml,
+      processingTime,
+      originalLength: html.length,
+      sanitizedLength: sanitizedHtml.length
     });
-    
   } catch (error: any) {
-    console.error("Erro ao gerar landing page:", error);
-    
-    // Capturar tempo total mesmo em caso de erro
-    const endTime = performance.now();
-    const timeElapsed = (endTime - startTime) / 1000; // em segundos
-    
-    return NextResponse.json(
-      { 
-        error: error.message || "Erro ao gerar a landing page", 
-        processingTime: timeElapsed.toFixed(2)
-      }, 
-      { status: 500 }
-    );
+    console.error('Erro ao processar a solicitação:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Erro interno do servidor',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    }, { 
+      status: 500 
+    });
   }
 } 

@@ -275,10 +275,10 @@ export default function LandingPagesPage() {
     if (loading) return;
     
     try {
-      setLoading(true);
+    setLoading(true);
       setLoadingMessage("Gerando sua landing page");
       setLoadingDots("");
-      setResult("");
+    setResult("");
       setShowDebugInfo(false);
       setShowMethodsContainer(false);
       
@@ -293,95 +293,111 @@ export default function LandingPagesPage() {
       // Preparar dados para envio
       const imageDataForAPI = images.map((img, index) => ({
         description: img.description || `Imagem ${index + 1}`,
-        index: index + 1
+        preview: img.preview
       }));
       
-      const payload = {
-        ...formData,
-        images: imageDataForAPI
-      };
+      // Construir o prompt para a API
+      const apiPrompt = `
+Crie uma landing page completa e moderna para o seguinte produto/serviço:
+
+TÍTULO: ${formData.titulo}
+
+OBJETIVO: ${formData.objetivo}
+
+DESCRIÇÃO DETALHADA: ${formData.descricao}
+
+TOM DE COMUNICAÇÃO: ${formData.tom || "profissional"}
+
+CALL-TO-ACTION PRINCIPAL: ${formData.cta || ""}
+
+ELEMENTOS A INCLUIR: ${formData.elementos || "Cabeçalho, Hero section, Benefícios, Funcionalidades, Depoimentos, FAQ, Formulário de contato, Rodapé"}
+
+CORES PRINCIPAIS: ${formData.cores || "Use cores modernas que combinem com o objetivo do produto/serviço"}
+
+ESTILO VISUAL: ${formData.estilo || "moderno"}
+
+IMAGENS DISPONÍVEIS:
+${images?.map((img, index) => `Mídia ${index + 1}: ${img.description || `Imagem ${index + 1}`}`).join('\n') || "Não há imagens disponíveis. Use placeholders adequados."}
+
+Crie uma landing page HTML5 completa, moderna e responsiva com todos os elementos necessários.
+A página DEVE incluir:
+- Cabeçalho com logo e menu de navegação
+- Seção hero com título impactante e CTA principal
+- Seção de benefícios/recursos em formato visual atraente (pelo menos 3-4 benefícios)
+- Seção de depoimentos com pelo menos 3 depoimentos fictícios com nomes e imagens/ícones
+- Seção "Sobre nós" ou informativa sobre a empresa/serviço
+- Seção de preços/planos (se aplicável)
+- Formulário de contato ou captura de leads funcionais
+- Seção FAQ com pelo menos 3-4 perguntas comuns
+- Rodapé completo com links de navegação, contato e redes sociais
+- Design totalmente responsivo para celulares, tablets e desktop
+
+Use as imagens disponíveis nos locais mais adequados usando: <img src="__IMG_X__" alt="Descrição">
+Por exemplo: <img src="__IMG_1__" alt="Imagem principal do produto">
+Ou alternativamente: <img src="Mídia X" alt="Descrição">
+
+IMPORTANTE:
+- Use Bootstrap 5 para componentes e layout responsivo
+- Adicione efeitos de animação AOS (Animate On Scroll)
+- Use FontAwesome para ícones
+- Adicione estilos CSS personalizados para criar uma aparência única e profissional
+- Inclua JavaScript para interações como validação de formulários, sliders, etc.
+- Certifique-se de que todos os links e botões tenham efeitos de hover
+- Use gradientes, sombras e efeitos visuais modernos
+- NUNCA use markdown ou backticks em sua resposta, apenas HTML puro
+
+Gere APENAS o código HTML completo e pronto para uso, SEM COMENTÁRIOS EXTRAS, incluindo todos os estilos CSS e scripts JavaScript necessários.
+NÃO inclua texto explicativo em volta do código.`;
       
-      console.log("Enviando dados para API:", payload);
-      
-      // Abortar requisições anteriores se existirem
-      if (controllerRef.current) {
-        controllerRef.current.abort();
-      }
-      
-      // Criar novo controller para esta requisição
-      controllerRef.current = new AbortController();
-      
-      // Definir timeout para a requisição
-      timeoutIdRef.current = setTimeout(() => {
-        if (controllerRef.current) {
-          controllerRef.current.abort();
-          setLoading(false);
-          clearInterval(dotsInterval);
-          toast.error("Tempo limite excedido. Por favor, tente novamente.");
-        }
-      }, 240000); // 4 minutos
-      
-      // Fazer a requisição para a API
-      const response = await fetch("/api/landing-pages", {
-        method: "POST",
+      // Enviar solicitação para a API
+      const response = await fetch('/api/landing-pages', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json"
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
-        signal: controllerRef.current.signal
+        body: JSON.stringify({
+          prompt: apiPrompt,
+          images: imageDataForAPI,
+        }),
       });
-      
-      // Limpar timeout e controller
-      if (timeoutIdRef.current) {
-        clearTimeout(timeoutIdRef.current);
-        timeoutIdRef.current = null;
-      }
-      controllerRef.current = null;
-      clearInterval(dotsInterval);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao gerar a landing page");
+        throw new Error(`Erro na API: ${response.statusText}`);
       }
       
       const data = await response.json();
+      clearInterval(dotsInterval); // Parar a animação de pontos
       
-      // Verificar se a resposta tem o campo 'html' ou 'result'
-      const htmlContent = data.html || data.result;
-      
-      if (!htmlContent) {
-        throw new Error("A API não retornou o HTML da landing page");
+      // Verificar se há erro na resposta
+      if (data.error) {
+        throw new Error(data.error);
       }
       
-      // Verificar se a landing page contém os elementos essenciais
-      const qualityCheck = checkLandingPageQuality(htmlContent);
+      // Atualizar estado com o resultado
+      const htmlResult = data.html || "";
+      setResult(htmlResult);
       
-      if (qualityCheck.hasIssues) {
-        console.warn("Landing page gerada tem problemas:", qualityCheck.issues);
-        
-        // Adicionar notificação informativa, mas prosseguir com o carregamento
-        setTimeout(() => {
-          toast.info("A landing page foi gerada, mas pode precisar de alguns ajustes.", {
-            duration: 5000
-          });
-        }, 1000);
-      }
+      // Processar e exibir estatísticas
+      setProcessingStats({
+        time: parseFloat(data.processingTime || "0").toFixed(2),
+        originalLength: data.originalLength || 0,
+        sanitizedLength: data.sanitizedLength || 0,
+        improvement: data.sanitizedLength && data.originalLength ? 
+          (((data.sanitizedLength - data.originalLength) / data.originalLength) * 100).toFixed(2) + "%" : 
+          "N/A"
+      });
       
-      // Processar o HTML para substituir referências de mídia
-      const processedHtml = fixImagePlaceholders(htmlContent);
-      setResult(processedHtml);
+      // Exibir estatísticas de processamento
+      setShowDebugInfo(true);
       
-      // Mostrar os métodos de visualização
-      setShowMethodsContainer(true);
-      
-      // Aplicar o método 4 (Blob) por padrão, pois é o mais eficaz
+      // Aplicar resultado ao iframe
       setTimeout(() => {
         applyMethod4();
+        setShowMethodsContainer(false);
       }, 500);
-      
     } catch (error: any) {
-      console.error("Erro:", error);
-      toast.error(error.message || "Erro ao gerar a landing page");
+      console.error("Erro ao enviar formulário:", error);
+      setLoadingMessage(`Erro: ${error.message || "Falha ao gerar landing page"}`);
     } finally {
       setLoading(false);
     }
@@ -639,7 +655,7 @@ export default function LandingPagesPage() {
         } finally {
           // Sempre revogar o URL para evitar vazamentos de memória
           setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        }
+      }
       };
       
       // Configurar evento de erro para o iframe
@@ -655,7 +671,7 @@ export default function LandingPagesPage() {
         if (event.data && event.data.type === 'iframe-error') {
           console.error('Erro capturado no iframe:', event.data);
           toast.error(`Erro no JavaScript da página: linha ${event.data.lineno}`);
-        }
+      }
       };
       
       window.addEventListener('message', messageHandler);
@@ -665,7 +681,7 @@ export default function LandingPagesPage() {
         window.removeEventListener('message', messageHandler);
       };
       
-    } catch (error) {
+      } catch (error) {
       console.error('Erro ao usar Método 4 (Blob):', error);
       toast.error("Erro ao aplicar método 4. Tente outro método de visualização.");
     }
