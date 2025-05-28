@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Geração de Landing Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        form {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow: auto;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            font-size: 12px;
+        }
+        #preview-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+        #preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+        }
+        #debug-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ffa500;
+            border-radius: 4px;
+            background-color: #fff8dc;
+        }
+        .tab-buttons {
+            margin-bottom: 10px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #external-preview {
+            border: none;
+            width: 100%;
+            height: 600px;
+            resize: both;
+            overflow: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .methods-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            background-color: #f0fff0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Geração de Landing Page</h1>
+    <p>Preencha o formulário abaixo para gerar uma landing page personalizada.</p>
+    
+    <form id="landingPageForm">
+        <div class="form-group">
+            <label for="niche">Nicho:</label>
+            <input type="text" id="niche" name="niche" required placeholder="Ex: Marketing Digital">
+        </div>
+        
+        <div class="form-group">
+            <label for="product">Produto:</label>
+            <input type="text" id="product" name="product" required placeholder="Ex: Curso de SEO Avançado">
+        </div>
+        
+        <div class="form-group">
+            <label for="benefits">Benefícios (separados por linha):</label>
+            <textarea id="benefits" name="benefits" rows="3" placeholder="Ex: Aumento de tráfego orgânico&#10;Melhoria no ranqueamento&#10;Estratégias exclusivas"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="targetAudience">Público-alvo:</label>
+            <input type="text" id="targetAudience" name="targetAudience" placeholder="Ex: Empreendedores e profissionais de marketing">
+        </div>
+        
+        <div class="form-group">
+            <label for="callToAction">Call to Action:</label>
+            <input type="text" id="callToAction" name="callToAction" placeholder="Ex: Compre Agora">
+        </div>
+        
+        <div class="form-group">
+            <label for="pricing">Preço/Oferta:</label>
+            <input type="text" id="pricing" name="pricing" placeholder="Ex: R$997 por apenas R$697">
+        </div>
+        
+        <div class="form-group">
+            <label for="style">Estilo:</label>
+            <select id="style" name="style">
+                <option value="minimalista">Minimalista</option>
+                <option value="moderno">Moderno</option>
+                <option value="corporativo">Corporativo</option>
+                <option value="criativo">Criativo</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="testimonials" name="testimonials">
+                Incluir depoimentos
+            </label>
+        </div>
+        
+        <button type="submit">Gerar Landing Page</button>
+    </form>
+    
+    <div id="loading" class="hidden">
+        <p>Gerando landing page... Por favor, aguarde (pode levar até 3 minutos).</p>
+        <div style="width: 100%; height: 20px; background-color: #f3f3f3; border-radius: 10px; overflow: hidden;">
+            <div id="progress-bar" style="width: 0%; height: 100%; background-color: #4CAF50; transition: width 0.5s;"></div>
+        </div>
+    </div>
+    
+    <div id="preview-container" class="hidden">
+        <h2>Visualização</h2>
+        <div class="tab-buttons">
+            <button id="tab-iframe">Visualização no Iframe</button>
+            <button id="tab-external">Visualização Direta</button>
+            <button id="tab-window">Abrir em Nova Aba</button>
+            <button id="show-html">Ver Código HTML</button>
+        </div>
+        <div id="iframe-tab" class="tab-content active">
+            <iframe id="preview-iframe" frameborder="0"></iframe>
+        </div>
+        <div id="external-tab" class="tab-content">
+            <div id="external-preview"></div>
+        </div>
+        <div id="html-view" class="tab-content">
+            <pre id="html-code"></pre>
+        </div>
+    </div>
+    
+    <div id="methods-container" class="methods-container hidden">
+        <h2>Métodos de Visualização</h2>
+        <p>Se você está tendo problemas para visualizar a landing page, tente um dos métodos abaixo:</p>
+        <div>
+            <button id="method1">Método 1: document.write</button>
+            <button id="method2">Método 2: Data URL</button>
+            <button id="method3">Método 3: HTML Externo</button>
+            <button id="method4">Método 4: Objeto Blob</button>
+            <button id="method5">Método 5: InnerHTML</button>
+        </div>
+    </div>
+    
+    <div id="debug-container" class="hidden">
+        <h2>Informações de Depuração</h2>
+        <div>
+            <p><strong>Tamanho do HTML:</strong> <span id="html-length">0</span> caracteres</p>
+            <p><strong>Primeiros 100 caracteres:</strong></p>
+            <pre id="html-preview"></pre>
+            <p><strong>Status do iframe:</strong> <span id="iframe-status">Não carregado</span></p>
+            <button id="copyHtml">Copiar HTML</button>
+            <button id="saveHtml">Salvar como arquivo .html</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('landingPageForm');
+            const loading = document.getElementById('loading');
+            const progressBar = document.getElementById('progress-bar');
+            const previewContainer = document.getElementById('preview-container');
+            const previewIframe = document.getElementById('preview-iframe');
+            const debugContainer = document.getElementById('debug-container');
+            const methodsContainer = document.getElementById('methods-container');
+            const htmlLength = document.getElementById('html-length');
+            const htmlPreview = document.getElementById('html-preview');
+            const iframeStatus = document.getElementById('iframe-status');
+            const copyHtmlBtn = document.getElementById('copyHtml');
+            const saveHtmlBtn = document.getElementById('saveHtml');
+            const tabIframeBtn = document.getElementById('tab-iframe');
+            const tabExternalBtn = document.getElementById('tab-external');
+            const tabWindowBtn = document.getElementById('tab-window');
+            const showHtmlBtn = document.getElementById('show-html');
+            const iframeTab = document.getElementById('iframe-tab');
+            const externalTab = document.getElementById('external-tab');
+            const htmlView = document.getElementById('html-view');
+            const htmlCode = document.getElementById('html-code');
+            const externalPreview = document.getElementById('external-preview');
+            
+            // Métodos de visualização
+            const method1Btn = document.getElementById('method1');
+            const method2Btn = document.getElementById('method2');
+            const method3Btn = document.getElementById('method3');
+            const method4Btn = document.getElementById('method4');
+            const method5Btn = document.getElementById('method5');
+            
+            let generatedHtml = '';
+            let progressInterval;
+            
+            // Trocar entre abas
+            tabIframeBtn.addEventListener('click', function() {
+                iframeTab.classList.add('active');
+                externalTab.classList.remove('active');
+                htmlView.classList.remove('active');
+            });
+            
+            tabExternalBtn.addEventListener('click', function() {
+                iframeTab.classList.remove('active');
+                externalTab.classList.add('active');
+                htmlView.classList.remove('active');
+            });
+            
+            showHtmlBtn.addEventListener('click', function() {
+                iframeTab.classList.remove('active');
+                externalTab.classList.remove('active');
+                htmlView.classList.add('active');
+            });
+            
+            tabWindowBtn.addEventListener('click', function() {
+                const newTab = window.open();
+                newTab.document.write(generatedHtml);
+                newTab.document.close();
+            });
+            
+            // Métodos de visualização alternativos
+            method1Btn.addEventListener('click', function() {
+                try {
+                    console.log('Aplicando método 1: document.write');
+                    const iframe = previewIframe;
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    
+                    iframeDoc.open();
+                    iframeDoc.write(generatedHtml);
+                    iframeDoc.close();
+                    
+                    iframeStatus.textContent = 'Carregado usando document.write (Método 1)';
+                } catch (error) {
+                    console.error('Erro ao usar Método 1:', error);
+                    iframeStatus.textContent = 'Erro no Método 1: ' + error.message;
+                }
+            });
+            
+            method2Btn.addEventListener('click', function() {
+                try {
+                    console.log('Aplicando método 2: data URL');
+                    const iframe = previewIframe;
+                    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(generatedHtml);
+                    iframe.src = dataUrl;
+                    
+                    iframeStatus.textContent = 'Carregado usando data URL (Método 2)';
+                } catch (error) {
+                    console.error('Erro ao usar Método 2:', error);
+                    iframeStatus.textContent = 'Erro no Método 2: ' + error.message;
+                }
+            });
+            
+            method3Btn.addEventListener('click', function() {
+                try {
+                    console.log('Aplicando método 3: HTML Externo');
+                    externalPreview.innerHTML = generatedHtml;
+                    tabExternalBtn.click(); // Mudar para a aba de visualização externa
+                    
+                    iframeStatus.textContent = 'Visualização externa aplicada (Método 3)';
+                } catch (error) {
+                    console.error('Erro ao usar Método 3:', error);
+                    iframeStatus.textContent = 'Erro no Método 3: ' + error.message;
+                }
+            });
+            
+            method4Btn.addEventListener('click', function() {
+                try {
+                    console.log('Aplicando método 4: Objeto Blob');
+                    const blob = new Blob([generatedHtml], { type: 'text/html' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    previewIframe.src = blobUrl;
+                    
+                    iframeStatus.textContent = 'Carregado usando Blob URL (Método 4)';
+                } catch (error) {
+                    console.error('Erro ao usar Método 4:', error);
+                    iframeStatus.textContent = 'Erro no Método 4: ' + error.message;
+                }
+            });
+            
+            method5Btn.addEventListener('click', function() {
+                try {
+                    console.log('Aplicando método 5: innerHTML no iframe');
+                    const iframe = previewIframe;
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    
+                    iframeDoc.body.innerHTML = ''; // Limpar conteúdo atual
+                    
+                    // Extrair e adicionar estilos do head
+                    const styleMatches = generatedHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/g);
+                    if (styleMatches) {
+                        styleMatches.forEach(styleTag => {
+                            const styleElement = iframeDoc.createElement('style');
+                            styleElement.textContent = styleTag.replace(/<style[^>]*>|<\/style>/g, '');
+                            iframeDoc.head.appendChild(styleElement);
+                        });
+                    }
+                    
+                    // Extrair e adicionar scripts
+                    const scriptMatches = generatedHtml.match(/<script[^>]*>([\s\S]*?)<\/script>/g);
+                    if (scriptMatches) {
+                        scriptMatches.forEach(scriptTag => {
+                            if (!scriptTag.includes('src=')) {
+                                const scriptElement = iframeDoc.createElement('script');
+                                scriptElement.textContent = scriptTag.replace(/<script[^>]*>|<\/script>/g, '');
+                                iframeDoc.body.appendChild(scriptElement);
+                            }
+                        });
+                    }
+                    
+                    // Extrair apenas o conteúdo do body
+                    const bodyContent = generatedHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+                    if (bodyContent && bodyContent[1]) {
+                        iframeDoc.body.innerHTML = bodyContent[1];
+                    } else {
+                        // Se não conseguir extrair o body, tente colocar todo o HTML
+                        iframeDoc.body.innerHTML = generatedHtml;
+                    }
+                    
+                    iframeStatus.textContent = 'Carregado usando innerHTML (Método 5)';
+                } catch (error) {
+                    console.error('Erro ao usar Método 5:', error);
+                    iframeStatus.textContent = 'Erro no Método 5: ' + error.message;
+                }
+            });
+            
+            copyHtmlBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(generatedHtml)
+                    .then(() => alert('HTML copiado para a área de transferência!'))
+                    .catch(err => alert('Erro ao copiar: ' + err));
+            });
+            
+            saveHtmlBtn.addEventListener('click', function() {
+                try {
+                    const blob = new Blob([generatedHtml], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    
+                    a.href = url;
+                    a.download = `landing-page-${timestamp}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (error) {
+                    console.error('Erro ao salvar HTML:', error);
+                    alert('Erro ao salvar HTML: ' + error.message);
+                }
+            });
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const benefits = formData.get('benefits').split('\n').filter(benefit => benefit.trim() !== '');
+                
+                const data = {
+                    niche: formData.get('niche'),
+                    product: formData.get('product'),
+                    benefits: benefits,
+                    targetAudience: formData.get('targetAudience'),
+                    callToAction: formData.get('callToAction'),
+                    testimonials: formData.get('testimonials') === 'on',
+                    pricing: formData.get('pricing'),
+                    style: formData.get('style')
+                };
+                
+                // Mostrar loading e iniciar barra de progresso
+                loading.classList.remove('hidden');
+                previewContainer.classList.add('hidden');
+                debugContainer.classList.add('hidden');
+                methodsContainer.classList.add('hidden');
+                
+                // Iniciar barra de progresso simulada (já que não temos feedback real do processo)
+                let progress = 0;
+                progressBar.style.width = '0%';
+                
+                progressInterval = setInterval(() => {
+                    // Incrementar progresso de forma não linear para simular o processo real
+                    // Mais lento no meio onde normalmente a AI gasta mais tempo pensando
+                    if (progress < 30) {
+                        progress += 0.7; // Fase inicial rápida
+                    } else if (progress < 70) {
+                        progress += 0.3; // Fase do meio mais lenta (geração da AI)
+                    } else if (progress < 90) {
+                        progress += 0.5; // Fase final mais rápida
+                    } else {
+                        progress += 0.1; // Últimos ajustes bem lentos
+                    }
+                    
+                    // Nunca chegar a 100% antes da conclusão real
+                    if (progress > 98) {
+                        progress = 98;
+                    }
+                    
+                    progressBar.style.width = progress + '%';
+                }, 300);
+                
+                try {
+                    console.log('Enviando requisição para /api/landing-pages...');
+                    const response = await fetch('/api/landing-pages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    // Limpar o intervalo da barra de progresso
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+                    
+                    if (!response.ok) {
+                        throw new Error('Erro na requisição: ' + response.status);
+                    }
+                    
+                    console.log('Resposta recebida com sucesso');
+                    const responseData = await response.json();
+                    generatedHtml = responseData.result;
+                    
+                    // Exibir informações de depuração
+                    htmlLength.textContent = generatedHtml.length;
+                    htmlPreview.textContent = generatedHtml.substring(0, 100) + '...';
+                    htmlCode.textContent = generatedHtml;
+                    
+                    console.log('Tamanho do HTML gerado:', generatedHtml.length);
+                    console.log('Primeiros 100 caracteres:', generatedHtml.substring(0, 100));
+                    
+                    // Aplicar método 4 (Blob) por padrão - geralmente é o que funciona melhor
+                    try {
+                        console.log('Aplicando método padrão (Blob)');
+                        const blob = new Blob([generatedHtml], { type: 'text/html' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        previewIframe.src = blobUrl;
+                        
+                        iframeStatus.textContent = 'Carregado usando Blob URL (método padrão)';
+                        console.log('Método padrão aplicado com sucesso');
+                        
+                        // Também tentar o método 3 (HTML externo)
+                        externalPreview.innerHTML = generatedHtml;
+                    } catch (iframeError) {
+                        console.error('Erro ao carregar iframe (método padrão):', iframeError);
+                        iframeStatus.textContent = 'Erro: ' + iframeError.message;
+                    }
+                    
+                    // Mostrar os containers
+                    previewContainer.classList.remove('hidden');
+                    debugContainer.classList.remove('hidden');
+                    methodsContainer.classList.remove('hidden');
+                } catch (error) {
+                    clearInterval(progressInterval);
+                    
+                    alert('Erro ao gerar landing page: ' + error.message);
+                    console.error('Erro:', error);
+                    debugContainer.classList.remove('hidden');
+                    iframeStatus.textContent = 'Erro na requisição: ' + error.message;
+                } finally {
+                    loading.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
