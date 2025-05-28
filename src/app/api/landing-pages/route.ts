@@ -7,6 +7,8 @@ import * as fs from 'fs';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { saveUserCreation } from "@/lib/db/models/UserCreation";
+import { NextRequest } from 'next/server';
+import prisma from '@/lib/prisma';
 
 // Função para fornecer CSS padrão com base no estilo selecionado
 function getDefaultCSS(style: string): string {
@@ -2642,4 +2644,57 @@ function createFallbackLandingPage(niche: string, product: string, style: string
       'Content-Type': 'text/html; charset=utf-8'
     }
   });
+} 
+
+export async function GET(request: NextRequest) {
+  try {
+    // Verificar autenticação
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+    
+    // Obter parâmetros de query
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    
+    // Buscar landing pages do usuário
+    const landingPages = await prisma.landingPage.findMany({
+      where: {
+        userId: session.user.id,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    });
+    
+    // Contar o total de landing pages
+    const total = await prisma.landingPage.count({
+      where: {
+        userId: session.user.id,
+      },
+    });
+    
+    return NextResponse.json({
+      landingPages,
+      total,
+      limit,
+      offset,
+    });
+    
+  } catch (error: any) {
+    console.error('Erro ao listar landing pages:', error);
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 });
+  }
 } 

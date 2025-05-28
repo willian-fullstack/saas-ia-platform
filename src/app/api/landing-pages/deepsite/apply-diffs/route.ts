@@ -6,6 +6,9 @@ import { authOptions } from '@/lib/auth';
 import { Performance } from '@/lib/performance';
 import { consumeDeepSiteCredits, hasEnoughCredits } from '@/lib/deepsite-credits';
 import { z } from 'zod';
+import { applyDiffs } from '../diff-utils';
+import sanitizeHtml from 'sanitize-html';
+import { sanitizeOptions, isValidSession } from '../utils';
 
 // Constantes para parser de diff
 const SEARCH_START = "<<<<<<< SEARCH";
@@ -179,101 +182,54 @@ function isValidHtml(html: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  const startTime = Performance.now();
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user) {
-    return NextResponse.json({ 
-      ok: false, 
-      message: "Não autorizado" 
-    }, { status: 401 });
-  }
-  
   try {
-    // Validar dados de entrada
-    const body = await request.json();
-    const validationResult = applyDiffSchema.safeParse(body);
-    
-    if (!validationResult.success) {
-      return NextResponse.json({ 
-        ok: false, 
-        message: "Dados inválidos", 
-        errors: validationResult.error.format() 
-      }, { status: 400 });
+    // Obter informações do usuário da sessão (se autenticado)
+    let userId = 'anonymous-user';
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id) {
+      userId = session.user.id;
     }
     
-    const { html, diff, sessionId } = validationResult.data;
+    // Obter os dados da requisição
+    const requestData = await request.json();
+    const { sessionId, html, diffs } = requestData;
     
-    // Verificar disponibilidade de créditos
-    const hasCredits = await hasEnoughCredits("APPLY_DIFFS");
-    
-    if (!hasCredits) {
-      return NextResponse.json({ 
-        ok: false, 
-        message: "Créditos insuficientes para esta operação" 
-      }, { status: 403 });
+    if (!html) {
+      return NextResponse.json({ error: 'HTML é obrigatório' }, { status: 400 });
     }
     
-    // Analisar blocos de diferença
-    const blocks = parseDiffBlocks(diff);
-    
-    if (blocks.length === 0) {
-      return NextResponse.json({
-        ok: false,
-        message: "Nenhum bloco de diferença encontrado" 
-      }, { status: 400 });
-    }
-
-    console.log(`Aplicando ${blocks.length} blocos de diferença`);
-    
-    // Aplicar blocos de diferença
-    const modifiedHtml = applyDiffBlocks(html, blocks);
-    
-    // Validar HTML resultante
-    if (!isValidHtml(modifiedHtml)) {
-      return NextResponse.json({ 
-        ok: false, 
-        message: "O HTML resultante não é válido" 
-      }, { status: 422 });
+    if (!diffs) {
+      return NextResponse.json({ error: 'Diffs são obrigatórios' }, { status: 400 });
     }
     
-    // Atualizar sessão se existir
+    // Verificar se o usuário tem acesso à sessão (se não for anônima)
+    if (sessionId && 
+        global.deepsiteSessions?.[sessionId] && 
+        global.deepsiteSessions[sessionId].userId !== 'anonymous-user' && 
+        global.deepsiteSessions[sessionId].userId !== userId) {
+      return NextResponse.json({ error: 'Acesso negado a esta sessão' }, { status: 403 });
+    }
+    
+    // Aplicar os diffs ao HTML
+    const modifiedHtml = applyDiffs(html, diffs);
+    
+    // Sanitizar o HTML resultante
+    const sanitizedHtml = sanitizeHtml(modifiedHtml, sanitizeOptions);
+    
+    // Atualizar a sessão se existir
     if (sessionId && global.deepsiteSessions?.[sessionId]) {
-      const deepSiteSession = global.deepsiteSessions[sessionId];
-      
-      // Verificar se o usuário é o proprietário da sessão
-      if (deepSiteSession.userId !== session.user.id) {
-        return NextResponse.json({ 
-          ok: false, 
-          message: "Acesso negado a esta sessão" 
-        }, { status: 403 });
-      }
-      
-      // Atualizar HTML e timestamp
-      deepSiteSession.html = modifiedHtml;
-      deepSiteSession.updatedAt = new Date();
+      global.deepsiteSessions[sessionId].html = sanitizedHtml;
+      global.deepsiteSessions[sessionId].updatedAt = new Date();
     }
     
-    // Consumir créditos
-    await consumeDeepSiteCredits("APPLY_DIFFS", `Aplicado ${blocks.length} blocos de diferença`);
-    
-    // Registrar métricas de desempenho
-    const endTime = Performance.now();
-    Performance.record('apply_diffs', endTime - startTime);
-    
+    // Retornar o HTML modificado
     return NextResponse.json({
-      ok: true,
-      html: modifiedHtml,
-      blocks: blocks.length,
-      processingTime: (endTime - startTime).toFixed(2),
+      html: sanitizedHtml,
+      sessionId
     });
     
   } catch (error: any) {
-    console.error("Erro ao aplicar diferenças:", error);
-    
-    return NextResponse.json({
-      ok: false,
-      message: `Erro ao aplicar diferenças: ${error.message}`
-    }, { status: 500 });
+    console.error('Erro ao aplicar diffs:', error);
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 });
   }
 } 

@@ -48,7 +48,12 @@ Plataforma de IA integrada para automação de marketing e geração de conteúd
 - Suporte completo a SVG para ícones e elementos gráficos
 - Algoritmo avançado de aplicação de diffs com múltiplos fallbacks
 - Validação rigorosa de entrada e saída
-- **Novidades (v1.2.0):**
+- **Novidades (v1.3.0):**
+  - Sistema completo de salvamento e gerenciamento de landing pages
+  - Visualização responsiva (desktop e mobile) das landing pages
+  - Interface para edição de landing pages salvas
+  - Listagem e busca de landing pages
+  - Integração com banco de dados PostgreSQL via Prisma
   - Prompts aprimorados para garantir código 100% autossuficiente
   - Sanitização avançada de HTML com suporte a SVG e CSS moderno
   - Algoritmo de diff com três níveis de estratégias de fallback
@@ -66,7 +71,7 @@ Plataforma de IA integrada para automação de marketing e geração de conteúd
 
 - **Frontend:** React, Next.js, TailwindCSS
 - **Backend:** Next.js API Routes
-- **Banco de Dados:** MongoDB com Mongoose
+- **Banco de Dados:** MongoDB com Mongoose, PostgreSQL com Prisma
 - **Autenticação:** NextAuth.js
 - **IA:** OpenAI API, DeepSeek API
 - **Pagamentos:** Mercado Pago
@@ -89,6 +94,9 @@ GOOGLE_CLIENT_SECRET=seu_client_secret
 # MongoDB
 MONGODB_URI=sua_uri_mongodb
 
+# PostgreSQL (para landing pages)
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/sas_platform?schema=public"
+
 # OpenAI
 OPENAI_API_KEY=sua_chave_api_openai
 
@@ -104,6 +112,12 @@ MERCADOPAGO_ACCESS_TOKEN=seu_token_mercadopago
 ```bash
 # Instalar dependências
 npm install
+
+# Gerar cliente Prisma
+npm run prisma:generate
+
+# Executar migrações do Prisma
+npm run prisma:migrate
 
 # Iniciar servidor de desenvolvimento
 npm run dev
@@ -123,12 +137,17 @@ src/
 │   ├── api/              # API Routes
 │   │   ├── auth/         # Autenticação
 │   │   ├── copywriting/  # IA de Copywriting
-│   │   └── landing-pages/# DeepSite
+│   │   └── landing-pages/# DeepSite e gerenciamento de landing pages
+│   └── dashboard/        # Interface do usuário
+│       └── landing-pages/# Interface de gerenciamento de landing pages
 ├── components/           # Componentes React
 ├── lib/                  # Utilitários e bibliotecas
-│   ├── db/               # Modelos e conexão com banco
+│   ├── db/               # Modelos e conexão com MongoDB
+│   ├── prisma.ts         # Cliente Prisma para PostgreSQL
 │   ├── auth.ts           # Configuração de autenticação
 │   └── deepsite-credits.ts # Sistema de créditos
+├── prisma/               # Esquema e migrações do Prisma
+│   └── schema.prisma     # Definição do modelo de dados
 └── styles/               # Estilos globais
 ```
 
@@ -139,3 +158,17 @@ src/
 3. Faça commit das alterações (`git commit -m 'Adiciona nova feature'`)
 4. Faça push para a branch (`git push origin feature/nova-feature`)
 5. Abra um Pull Request
+
+## Módulos
+
+### Landing Pages
+
+Um módulo para criação de landing pages com assistência de IA. Utiliza a API DeepSeek para gerar e modificar código HTML/CSS com base nas instruções do usuário.
+
+- Criação de landing pages usando prompts em linguagem natural
+- Editor de código HTML/CSS com visualização em tempo real
+- Sistema de diff para aplicar alterações incrementais
+- Gerenciamento de landing pages (listagem, edição, exclusão)
+- Sanitização de HTML para segurança
+
+[Ver documentação detalhada](./docs/manual-tecnico-landing-pages.md)

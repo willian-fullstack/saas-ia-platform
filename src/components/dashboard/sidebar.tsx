@@ -66,6 +66,7 @@ export function DashboardSidebar() {
         
         <NavLink href="/dashboard/landing-pages" icon={Layout} active={pathname?.includes('/dashboard/landing-pages')}>
           Landing Pages
+          <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-primary text-primary-foreground rounded-md">NOVO</span>
         </NavLink>
         
         <NavLink href="/dashboard/offers" icon={Gift} active={pathname?.includes('/dashboard/offers')}>

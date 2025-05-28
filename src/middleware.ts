@@ -6,7 +6,13 @@ import { getToken } from 'next-auth/jwt';
 const publicRoutes = ['/', '/login', '/api/auth'];
 
 // Rotas de API que devem ser públicas
-const publicApiRoutes = ['/api/auth', '/api/webhooks'];
+const publicApiRoutes = [
+  '/api/auth', 
+  '/api/webhooks', 
+  '/api/landing-pages/deepsite/ask-ai',
+  '/api/landing-pages/deepsite/session',
+  '/api/landing-pages/deepsite/apply-diffs'
+];
 
 // Middleware de autenticação
 export async function middleware(request: NextRequest) {

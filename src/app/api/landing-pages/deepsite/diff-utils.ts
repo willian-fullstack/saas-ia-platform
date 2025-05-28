@@ -1,53 +1,44 @@
 import { diff_match_patch } from 'diff-match-patch';
 
-// Constantes para os blocos de diff
-export const SEARCH_START = "<<<<<<< SEARCH";
-export const DIVIDER = "=======";
-export const REPLACE_END = ">>>>>>> REPLACE";
+/**
+ * Utilitários para aplicar diferenças (diffs) em HTML
+ * 
+ * Este módulo fornece funções para aplicar diferenças em formato de texto
+ * ao HTML de uma landing page, permitindo modificações incrementais.
+ */
+
+// Constantes para identificar partes do diff
+const SEARCH_MARKER = '<<<<<<< SEARCH';
+const SEPARATOR_MARKER = '=======';
+const REPLACE_MARKER = '>>>>>>> REPLACE';
 
 /**
- * Analisa o conteúdo da resposta da IA para blocos SEARCH/REPLACE.
- * @param {string} content - O conteúdo da resposta da IA.
- * @returns {Array<{original: string, updated: string}>} - Array de blocos de diff.
+ * Interface para um bloco de diferença
  */
-export function parseDiffBlocks(content: string): Array<{original: string, updated: string}> {
-  const blocks: Array<{original: string, updated: string}> = [];
-  const lines = content.split("\n");
-  let i = 0;
+interface DiffBlock {
+  search: string;
+  replace: string;
+}
+
+/**
+ * Analisa uma string de diff e extrai os blocos de diferença
+ * 
+ * @param diffString - String contendo os blocos de diferença
+ * @returns Array de blocos de diferença
+ */
+export function parseDiffBlocks(diffString: string): DiffBlock[] {
+  const blocks: DiffBlock[] = [];
   
-  while (i < lines.length) {
-    // Limpar linhas para comparação para lidar com possíveis espaços extras da IA
-    const trimmedLine = lines[i].trim();
-    
-    if (trimmedLine === SEARCH_START) {
-      let j = i + 1;
-      let originalBlock = "";
-      let updatedBlock = "";
-      
-      // Buscar o divisor
-      while (j < lines.length && lines[j].trim() !== DIVIDER) {
-        originalBlock += lines[j] + "\n";
-        j++;
-      }
-      
-      if (j < lines.length) j++; // Pular o divisor
-      
-      // Buscar o fim do bloco de substituição
-      while (j < lines.length && lines[j].trim() !== REPLACE_END) {
-        updatedBlock += lines[j] + "\n";
-        j++;
-      }
-      
-      // Remover últimas quebras de linha
-      originalBlock = originalBlock.trimEnd();
-      updatedBlock = updatedBlock.trimEnd();
-      
-      blocks.push({ original: originalBlock, updated: updatedBlock });
-      
-      // Atualizar o índice para continuar depois deste bloco
-      i = j + 1;
-    } else {
-      i++;
+  // Dividir a string em blocos
+  const pattern = new RegExp(`${SEARCH_MARKER}([\\s\\S]*?)${SEPARATOR_MARKER}([\\s\\S]*?)${REPLACE_MARKER}`, 'g');
+  let match;
+  
+  while ((match = pattern.exec(diffString)) !== null) {
+    if (match.length === 3) {
+      blocks.push({
+        search: match[1].trim(),
+        replace: match[2].trim()
+      });
     }
   }
   
@@ -55,39 +46,98 @@ export function parseDiffBlocks(content: string): Array<{original: string, updat
 }
 
 /**
- * Aplica blocos de diff a um conteúdo HTML.
- * @param {string} originalHtml - O conteúdo HTML original.
- * @param {string} diffContent - O conteúdo com as modificações no formato diff.
- * @returns {string} - O HTML com as modificações aplicadas.
+ * Aplica os blocos de diferença ao HTML
+ * 
+ * @param html - HTML original
+ * @param blocks - Blocos de diferença a serem aplicados
+ * @returns HTML modificado
  */
-export function applyDiffs(originalHtml: string, diffContent: string): string {
-  const blocks = parseDiffBlocks(diffContent);
-  let modifiedHtml = originalHtml;
+export function applyDiffBlocks(html: string, blocks: DiffBlock[]): string {
+  let result = html;
   
-  // Se não houver blocos de diff no formato SEARCH/REPLACE, verificar se o diffContent é HTML completo
-  if (blocks.length === 0) {
-    // Verificar se o conteúdo parece ser HTML válido (começa com <!DOCTYPE ou <html)
-    if (diffContent.trim().startsWith("<!DOCTYPE") || diffContent.trim().startsWith("<html")) {
-      return diffContent; // Retornar o conteúdo como está, assumindo que é um HTML completo
-    }
-    
-    // Caso contrário, tentar aplicar como diff tradicional
-    return applyTraditionalDiff(originalHtml, diffContent);
-  }
-  
-  // Aplicar cada bloco de substituição
+  // Aplicar cada bloco de diferença
   for (const block of blocks) {
-    // Verificar se o bloco original existe no HTML
-    if (modifiedHtml.includes(block.original)) {
-      // Substituição direta
-      modifiedHtml = modifiedHtml.replace(block.original, block.updated);
-    } else {
-      // Se não encontrar o bloco original exato, usar diff-match-patch para uma substituição mais flexível
-      modifiedHtml = applyFuzzyDiff(modifiedHtml, block.original, block.updated);
-    }
+    // Escapar caracteres especiais em expressões regulares
+    const searchRegex = block.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(searchRegex, 'g'), block.replace);
   }
   
-  return modifiedHtml;
+  return result;
+}
+
+/**
+ * Cria um bloco de diferença formatado
+ * 
+ * @param search - Texto a ser procurado
+ * @param replace - Texto de substituição
+ * @returns Bloco de diferença formatado
+ */
+export function createDiffBlock(search: string, replace: string): string {
+  return `${SEARCH_MARKER}\n${search}\n${SEPARATOR_MARKER}\n${replace}\n${REPLACE_MARKER}`;
+}
+
+/**
+ * Aplica uma string de diff ao HTML
+ * 
+ * @param html - HTML original
+ * @param diffString - String contendo os blocos de diferença
+ * @returns HTML modificado
+ */
+export function applyDiffs(html: string, diffString: string): string {
+  const blocks = parseDiffBlocks(diffString);
+  return applyDiffBlocks(html, blocks);
+}
+
+/**
+ * Verifica se um diff é válido
+ * 
+ * @param diffString - String contendo os blocos de diferença
+ * @returns true se o diff for válido, false caso contrário
+ */
+export function isValidDiff(diffString: string): boolean {
+  try {
+    const blocks = parseDiffBlocks(diffString);
+    return blocks.length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Verifica se o HTML é válido
+ * 
+ * @param html - HTML a ser verificado
+ * @returns true se o HTML for válido, false caso contrário
+ */
+export function isValidHtml(html: string): boolean {
+  // Verificação básica de tags
+  const openTags = html.match(/<[^\/][^>]*>/g) || [];
+  const closeTags = html.match(/<\/[^>]*>/g) || [];
+  
+  // Verificar se há um <!DOCTYPE html>
+  const hasDoctype = html.includes('<!DOCTYPE html>') || html.includes('<!doctype html>');
+  
+  // Verificar se há tags <html>, <head> e <body>
+  const hasHtmlTag = html.includes('<html') && html.includes('</html>');
+  const hasHeadTag = html.includes('<head') && html.includes('</head>');
+  const hasBodyTag = html.includes('<body') && html.includes('</body>');
+  
+  // Verificar se o número de tags de abertura e fechamento é aproximadamente igual
+  // (permitimos alguma diferença devido a tags que não precisam de fechamento)
+  const tagDifference = Math.abs(openTags.length - closeTags.length);
+  const isBalanced = tagDifference < 10; // Permitir até 10 tags de diferença
+  
+  return hasDoctype && hasHtmlTag && hasHeadTag && hasBodyTag && isBalanced;
+}
+
+/**
+ * Cria uma string de diff a partir de múltiplos blocos
+ * 
+ * @param blocks - Array de blocos de diferença
+ * @returns String formatada com todos os blocos de diferença
+ */
+export function createDiffString(blocks: DiffBlock[]): string {
+  return blocks.map(block => createDiffBlock(block.search, block.replace)).join('\n\n');
 }
 
 /**
@@ -171,7 +221,7 @@ export function extractDiffBlocks(originalHtml: string, newHtml: string): string
       searchBlock = text;
       replaceBlock = diffs[i + 1][1];
       
-      diffBlocks += `${SEARCH_START}\n${searchBlock}\n${DIVIDER}\n${replaceBlock}\n${REPLACE_END}\n\n`;
+      diffBlocks += `${SEARCH_MARKER}\n${searchBlock}\n${SEPARATOR_MARKER}\n${replaceBlock}\n${REPLACE_MARKER}\n\n`;
       i++; // Pular o próximo diff (inserção) já processado
     }
   }
