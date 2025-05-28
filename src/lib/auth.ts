@@ -3,6 +3,36 @@
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { AuthOptions } from "next-auth";
+
+// Opções de autenticação para uso com NextAuth
+export const authOptions: AuthOptions = {
+  // Configurar provedores, callbacks, etc.
+  // Esta é uma implementação mínima - ajuste conforme necessário
+  providers: [],
+  session: {
+    strategy: 'jwt',
+  },
+  callbacks: {
+    async session({ session, token }: any) {
+      if (session?.user && token?.sub) {
+        session.user.id = token.sub;
+        session.user.role = token.role || 'user';
+      }
+      return session;
+    },
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role || 'user';
+      }
+      return token;
+    }
+  },
+  pages: {
+    signIn: '/login',
+  },
+};
 
 // Definição de tipo estendida para incluir a propriedade role no usuário
 interface ExtendedUser {

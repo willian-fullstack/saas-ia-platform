@@ -63,6 +63,17 @@ export default function LandingPagesPage() {
 
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [showMethodsContainer, setShowMethodsContainer] = useState(false);
+  const [processingStats, setProcessingStats] = useState<{
+    time: string;
+    originalLength: number;
+    sanitizedLength: number;
+    improvement: string;
+  }>({
+    time: "0",
+    originalLength: 0,
+    sanitizedLength: 0,
+    improvement: "0%"
+  });
 
   // Adicionar estado para controlar a visualização desktop/mobile
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
