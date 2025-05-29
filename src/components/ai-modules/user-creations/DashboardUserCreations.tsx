@@ -10,8 +10,7 @@ import {
   Download, 
   Eye,
   Loader2,
-  RefreshCw,
-  AlertTriangle
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
@@ -30,107 +29,160 @@ interface Creation {
   updatedAt: string;
 }
 
-interface UserCreationsListProps {
+// Interface para landing pages
+interface LandingPage {
+  _id: string;
+  id?: string;
+  title: string;
+  description: string;
+  html: string;
+  tags: string[];
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DashboardUserCreationsProps {
   limit?: number;
-  showHeader?: boolean;
   className?: string;
 }
 
-export function UserCreationsList({ limit, showHeader = true, className = "" }: UserCreationsListProps) {
+export function DashboardUserCreations({ limit = 5, className = "" }: DashboardUserCreationsProps) {
   const { data: session } = useSession();
   const [creations, setCreations] = useState<Creation[]>([]);
+  const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
-  const [endpoint, setEndpoint] = useState('/api/user-creations');
 
   // Função para carregar criações do usuário
   const fetchCreations = useCallback(async () => {
-    console.log('UserCreationsList: Iniciando busca de criações');
+    console.log('DashboardUserCreations: Iniciando busca de criações');
     setError(null);
     
     try {
-      setIsLoading(true);
-      console.log('UserCreationsList: Fazendo requisição para endpoint', endpoint);
+      setIsRefreshing(true);
+      console.log('DashboardUserCreations: Fazendo requisição para /api/user-creations');
       
-      const response = await fetch(endpoint);
-      console.log('UserCreationsList: Status da resposta:', response.status);
+      // Primeiro, buscar todas as criações do usuário
+      const response = await fetch('/api/user-creations');
+      console.log('DashboardUserCreations: Status da resposta:', response.status);
       
       if (!response.ok) {
         throw new Error(`Erro ao carregar criações: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('UserCreationsList: Dados recebidos, total de criações:', data.creations?.length || 0);
+      console.log('DashboardUserCreations: Dados recebidos, total de criações:', data.creations?.length || 0);
       
-      if (data.creations && Array.isArray(data.creations)) {
-        console.log('UserCreationsList: Tipos de criações recebidas:', 
-          data.creations.map((c: any) => c.type).reduce((acc: Record<string, number>, type: string) => {
+      let allCreations = data.creations || [];
+      
+      // Verificar se há landing pages nos dados
+      const landingPagesInCreations = allCreations.filter((c: any) => c.type === 'landing-page') || [];
+      console.log('DashboardUserCreations: Landing pages encontradas nas criações:', landingPagesInCreations.length);
+      
+      // Buscar landing pages diretamente, independente de já terem sido encontradas ou não
+      console.log('DashboardUserCreations: Buscando landing pages diretamente do endpoint específico');
+      try {
+        const landingPagesResponse = await fetch('/api/landing-pages');
+        
+        if (landingPagesResponse.ok) {
+          const landingPagesData = await landingPagesResponse.json();
+          console.log('DashboardUserCreations: Landing pages encontradas no endpoint específico:', 
+                      landingPagesData.landingPages?.length || 0);
+          
+          if (landingPagesData.landingPages?.length > 0) {
+            // Converter landing pages para o formato de criações
+            const landingPageCreations: Creation[] = landingPagesData.landingPages.map((lp: LandingPage) => {
+              console.log('DashboardUserCreations: Convertendo landing page para formato de criação:', lp.title, 'ID:', lp._id || lp.id);
+              console.log('DashboardUserCreations: HTML disponível:', Boolean(lp.html), 'Tamanho:', lp.html?.length || 0);
+              
+              return {
+                _id: lp._id || lp.id || '',
+                title: lp.title || 'Landing Page sem título',
+                type: 'landing-page',
+                content: {
+                  result: lp.html || '',
+                  description: lp.description || '',
+                  tags: lp.tags || []
+                },
+                createdAt: lp.createdAt || new Date().toISOString(),
+                updatedAt: lp.updatedAt || new Date().toISOString()
+              };
+            });
+            
+            // Verificar se já existem essas landing pages nas criações
+            const existingLandingPageIds = new Set(landingPagesInCreations.map((lp: any) => lp._id));
+            console.log('DashboardUserCreations: IDs de landing pages já existentes:', 
+                      Array.from(existingLandingPageIds));
+            
+            // Adicionar apenas landing pages que ainda não existem nas criações
+            const newLandingPages = landingPageCreations.filter(lp => !existingLandingPageIds.has(lp._id));
+            console.log('DashboardUserCreations: Novas landing pages a serem adicionadas:', newLandingPages.length);
+            
+            if (newLandingPages.length > 0) {
+              allCreations = [...allCreations, ...newLandingPages];
+              console.log('DashboardUserCreations: Total de criações após adicionar landing pages:', allCreations.length);
+            }
+          }
+        } else {
+          console.warn('DashboardUserCreations: Falha ao buscar landing pages do endpoint específico');
+        }
+      } catch (landingPageError) {
+        console.error('DashboardUserCreations: Erro ao buscar landing pages:', landingPageError);
+        // Continuar mesmo se falhar a busca de landing pages
+      }
+      
+      // Ordenar por data mais recente
+      allCreations.sort((a: any, b: any) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      // Se houver limite, pegar apenas as N primeiras criações
+      const filteredCreations = limit ? allCreations.slice(0, limit) : allCreations;
+      setCreations(filteredCreations || []);
+      
+      if (allCreations.length > 0) {
+        console.log('DashboardUserCreations: Tipos encontrados após combinação:', 
+          allCreations.map((c: any) => c.type).reduce((acc: any, type: string) => {
             acc[type] = (acc[type] || 0) + 1;
             return acc;
           }, {})
         );
-        
-        // Verificar a integridade dos dados de cada criação
-        data.creations.forEach((creation: any, index: number) => {
-          if (!creation.content) {
-            console.warn(`UserCreationsList: Criação #${index} não tem conteúdo definido:`, creation);
-          } else if (!creation.content.result && creation.type === 'landing-page') {
-            console.warn(`UserCreationsList: Landing page #${index} não tem HTML definido:`, creation);
-          }
-        });
-        
-        // Ordenar por data mais recente
-        const sortedCreations = [...data.creations].sort((a: any, b: any) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        setCreations(sortedCreations);
-      } else {
-        console.warn('UserCreationsList: Dados recebidos não contêm um array de criações:', data);
-        setCreations([]);
       }
     } catch (error: any) {
-      console.error('UserCreationsList: Erro ao carregar criações:', error);
+      console.error('DashboardUserCreations: Erro ao carregar criações:', error);
       setError(error.message || 'Não foi possível carregar suas criações');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [endpoint]);
+  }, [limit]);
 
-  // Carregar criações na inicialização
-  useEffect(() => {
-    console.log('UserCreationsList: Componente montado, carregando criações');
-    if (isAutoRefresh) {
-      fetchCreations();
-      
-      // Atualizar a cada 15 segundos
-      const intervalId = setInterval(() => {
-        console.log('UserCreationsList: Atualizando automaticamente...');
-        fetchCreations();
-      }, 15000);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [fetchCreations, isAutoRefresh]);
-
-  // Configurar atualização periódica
-  useEffect(() => {
-    if (!session?.user) return;
+  // Função para forçar um refresh completo
+  const forceRefresh = useCallback(() => {
+    console.log('DashboardUserCreations: Forçando refresh completo');
+    setIsLoading(true);
     
-    console.log('UserCreationsList: Configurando atualização periódica');
-    // Atualizar a cada 30 segundos
+    // Pequeno atraso para garantir que o estado de loading seja exibido
+    setTimeout(() => {
+      fetchCreations();
+    }, 100);
+  }, [fetchCreations]);
+
+  // Carregar criações quando o componente montar
+  useEffect(() => {
+    console.log('DashboardUserCreations: Componente montado, carregando criações');
+    fetchCreations();
+    
+    // Atualizar a cada 15 segundos
     const intervalId = setInterval(() => {
-      console.log('UserCreationsList: Atualizando criações automaticamente...');
+      console.log('DashboardUserCreations: Atualizando automaticamente...');
       fetchCreations();
-    }, 30000);
+    }, 15000);
     
-    return () => {
-      console.log('UserCreationsList: Limpando intervalo de atualização');
-      clearInterval(intervalId);
-    };
-  }, [session, fetchCreations]);
+    return () => clearInterval(intervalId);
+  }, [fetchCreations]);
 
   // Copiar conteúdo da criação
   const handleCopy = (content: string | undefined) => {
@@ -253,24 +305,10 @@ export function UserCreationsList({ limit, showHeader = true, className = "" }: 
     }
   };
 
-  // Função para forçar um refresh completo
-  const forceRefresh = useCallback(() => {
-    console.log('UserCreationsList: Forçando refresh completo');
-    setIsLoading(true);
-    
-    // Pequeno atraso para garantir que o estado de loading seja exibido
-    setTimeout(() => {
-      fetchCreations();
-    }, 100);
-  }, [fetchCreations]);
-
-  // Verifica se não há criações para mostrar
-  const noCreations = !isLoading && creations.length === 0;
-
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+      <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Carregando suas criações...</p>
       </div>
     );
@@ -278,43 +316,40 @@ export function UserCreationsList({ limit, showHeader = true, className = "" }: 
 
   return (
     <div className={className}>
-      {showHeader && (
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Minhas Criações</h2>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={forceRefresh}
-              disabled={isLoading}
-              title="Atualizar lista"
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? 'Atualizando...' : 'Atualizar'}
-            </Button>
-          </div>
-        </div>
-      )}
-      
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center p-8">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Carregando suas criações...</p>
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center">
-          <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
-          <p className="text-destructive font-medium">{error}</p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">Atividade Recente</h2>
+        <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={forceRefresh}
-            className="mt-4"
+            disabled={isRefreshing}
+            title="Atualizar lista"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Atualizando...' : 'Atualizar'}
+          </Button>
+          <Link href="/profile/my-creations">
+            <Button variant="ghost" size="sm">Ver Todas</Button>
+          </Link>
+        </div>
+      </div>
+      
+      {error && (
+        <div className="p-4 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+          <p>{error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2" 
+            onClick={fetchCreations}
           >
             Tentar novamente
           </Button>
         </div>
-      ) : noCreations ? (
+      )}
+      
+      {creations.length === 0 && !error ? (
         <div className="text-center py-8 border rounded-lg bg-muted/30">
           <p className="text-muted-foreground mb-4">Você ainda não tem criações.</p>
           <Link href="/dashboard">

@@ -22,10 +22,24 @@ const saveCreationSchema = z.object({
 // GET - Obter criações do usuário
 export async function GET(request: NextRequest) {
   try {
+    console.log('API User Creations: Requisição GET recebida');
+    
     // Verificar autenticação
     const session = await getServerSession(authOptions);
+    console.log('API User Creations: Sessão:', session?.user?.email, session?.user?.id);
+    
+    // Permitir acesso em ambiente de desenvolvimento mesmo sem autenticação
+    const isDev = process.env.NODE_ENV === 'development';
+    
     if (!session?.user?.email || !session?.user?.id) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      console.log('API User Creations: Usuário não autenticado');
+      
+      // Em ambiente de desenvolvimento, podemos permitir acesso mesmo sem autenticação
+      if (isDev) {
+        console.log('API User Creations: Ambiente de desenvolvimento, continuando sem autenticação');
+      } else {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      }
     }
 
     // Obter parâmetros da URL
@@ -33,16 +47,20 @@ export async function GET(request: NextRequest) {
     const type = url.searchParams.get('type');
     const id = url.searchParams.get('id');
     
+    console.log('API User Creations: Parâmetros:', { type, id });
+    
     // Verificar se precisa buscar por ID
     if (id) {
       try {
         const creation = await getUserCreationById(id);
         
         // Verificar se a criação pertence ao usuário
-        if (!creation || creation.userId.toString() !== session.user.id) {
+        if (!creation || (creation.userId.toString() !== session?.user?.id && !isDev)) {
+          console.log('API User Creations: Criação não encontrada ou não pertence ao usuário');
           return NextResponse.json({ error: 'Criação não encontrada' }, { status: 404 });
         }
         
+        console.log('API User Creations: Criação encontrada:', creation._id);
         return NextResponse.json({ creation });
       } catch (error: unknown) {
         console.error('Erro ao buscar criação por ID:', error);
@@ -52,8 +70,10 @@ export async function GET(request: NextRequest) {
     
     try {
       // Buscar criações do usuário
-      const userId = session.user.id;
+      const userId = session?.user?.id || 'dev-user-id';
       let creations;
+      
+      console.log('API User Creations: Buscando criações para usuário:', userId);
       
       if (type) {
         // Verificar se o tipo é válido
@@ -65,6 +85,29 @@ export async function GET(request: NextRequest) {
         creations = await getUserCreationsByType(userId, type as CreationType);
       } else {
         creations = await getUserCreations(userId);
+      }
+      
+      console.log(`API User Creations: ${creations.length} criações encontradas`);
+      
+      // Log detalhado para debugging
+      if (creations.length > 0) {
+        console.log('API User Creations: Tipos encontrados:', creations.map(c => c.type).reduce((acc, type) => {
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {}));
+        
+        // Verificar especificamente landing pages
+        const landingPages = creations.filter(c => c.type === 'landing-page');
+        console.log(`API User Creations: ${landingPages.length} landing pages encontradas`);
+        
+        if (landingPages.length > 0) {
+          console.log('API User Creations: Exemplo de landing page:', {
+            id: landingPages[0]._id.toString(),
+            title: landingPages[0].title,
+            type: landingPages[0].type,
+            contentKeys: Object.keys(landingPages[0].content || {})
+          });
+        }
       }
       
       return NextResponse.json({ creations });

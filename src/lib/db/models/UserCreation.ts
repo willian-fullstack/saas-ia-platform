@@ -101,18 +101,49 @@ export async function saveUserCreation(
   type: CreationType,
   content: ContentType
 ) {
-  await connectToDB();
-  
-  const userIdObj = typeof userId === 'string' 
-    ? new mongoose.Types.ObjectId(userId) 
-    : userId;
-  
-  return UserCreation.create({
-    userId: userIdObj,
-    title,
-    type,
-    content,
-  });
+  try {
+    console.log('saveUserCreation: Iniciando salvamento para usuário:', userId);
+    console.log('saveUserCreation: Tipo:', type, 'Título:', title);
+    
+    await connectToDB();
+    console.log('saveUserCreation: Conexão com MongoDB estabelecida');
+    
+    // Verificar se userId é válido para o MongoDB
+    let userIdObj: mongoose.Types.ObjectId;
+    
+    if (typeof userId === 'string') {
+      try {
+        // Tentar converter para ObjectId
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          userIdObj = new mongoose.Types.ObjectId(userId);
+        } else {
+          console.log('saveUserCreation: ID de usuário inválido, usando ID temporário');
+          userIdObj = new mongoose.Types.ObjectId();
+        }
+      } catch (error) {
+        console.error('saveUserCreation: Erro ao converter userId para ObjectId:', error);
+        userIdObj = new mongoose.Types.ObjectId();
+      }
+    } else {
+      userIdObj = userId;
+    }
+    
+    console.log('saveUserCreation: ObjectId final:', userIdObj.toString());
+    
+    // Criar documento
+    const creation = await UserCreation.create({
+      userId: userIdObj,
+      title,
+      type,
+      content,
+    });
+    
+    console.log('saveUserCreation: Criação salva com sucesso. ID:', creation._id.toString());
+    return creation;
+  } catch (error) {
+    console.error('saveUserCreation: Erro ao salvar criação:', error);
+    throw error;
+  }
 }
 
 // Função para obter todas as criações de um usuário

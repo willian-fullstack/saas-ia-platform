@@ -2697,11 +2697,17 @@ export async function GET(request: NextRequest) {
       // Mapear os resultados para o formato esperado
       const formattedLandingPages = landingPages.map((page: any) => ({
         id: page._id.toString(),
+        _id: page._id.toString(), // Adicionar _id para compatibilidade
         title: page.title,
         description: page.description || '',
+        html: page.html, // Incluir o HTML completo
+        tags: page.tags || [],
+        userId: page.userId,
         createdAt: page.createdAt.toISOString(),
         updatedAt: page.updatedAt.toISOString()
       }));
+      
+      console.log(`Retornando ${formattedLandingPages.length} landing pages com conteúdo HTML completo`);
       
       return NextResponse.json({
         landingPages: formattedLandingPages,

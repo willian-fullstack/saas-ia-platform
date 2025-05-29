@@ -2,11 +2,22 @@
 
 import { Edit, Image as ImageIcon, Video, Layout, Gift, MessageSquare } from "lucide-react";
 import { useRequireAuth } from "@/lib/auth";
-import { UserCreationsList } from "@/components/ai-modules/user-creations/UserCreationsList";
+import { DashboardUserCreations } from "@/components/ai-modules/user-creations/DashboardUserCreations";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
   const { isLoading } = useRequireAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    // Forçar remontagem do componente após 2 segundos
+    const timer = setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Estado de carregamento enquanto verifica a autenticação
   if (isLoading) {
@@ -83,7 +94,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold">Atividade Recente</h2>
         </div>
         <div className="bg-background/70 backdrop-blur-sm rounded-xl border border-border/40 shadow-sm overflow-hidden">
-          <UserCreationsList limit={5} className="p-4" />
+          <DashboardUserCreations key={`dashboard-creations-${refreshKey}`} limit={5} className="p-4" />
         </div>
       </div>
     </div>
