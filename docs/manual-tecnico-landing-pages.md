@@ -1,15 +1,10 @@
-# Manual Técnico: Módulo de Landing Pages
+# Módulo de Landing Pages - Manual Técnico
 
-Este documento fornece informações técnicas detalhadas sobre o módulo de landing pages da plataforma SAS.
+Este documento fornece uma visão técnica detalhada do módulo de landing pages do sistema, incluindo sua arquitetura, componentes e fluxo de funcionamento.
 
-## Arquitetura
+## Visão Geral
 
-O módulo de landing pages é composto por:
-
-1. **Frontend**: Interface de usuário para criação, edição e visualização de landing pages
-2. **Backend**: APIs para processamento de solicitações, comunicação com IA e gerenciamento de dados
-3. **Banco de Dados**: Armazenamento persistente das landing pages criadas
-4. **Integração com IA**: Comunicação com APIs de IA para geração de código HTML/CSS
+O módulo de landing pages permite aos usuários criar e gerenciar landing pages usando uma interface assistida por inteligência artificial. O sistema utiliza a API DeepSeek para gerar e modificar código HTML/CSS com base nas instruções do usuário em linguagem natural.
 
 ### Diagrama de Componentes
 
@@ -34,153 +29,120 @@ O módulo de landing pages é composto por:
 
 ### Frontend
 
-#### Páginas
+O frontend do módulo é implementado usando React e Next.js, oferecendo uma interface intuitiva para:
 
-- **`/dashboard/landing-pages/page.tsx`**: Lista todas as landing pages do usuário
-- **`/dashboard/landing-pages/deepsite/page.tsx`**: Interface para criar novas landing pages com IA
-- **`/dashboard/landing-pages/[id]/page.tsx`**: Visualização de uma landing page específica
-- **`/dashboard/landing-pages/edit/[id]/page.tsx`**: Edição de uma landing page existente
-
-#### Componentes Principais
-
-- **Editor de HTML**: Permite edição direta do código HTML
-- **Visualizador Responsivo**: Permite visualizar a landing page em diferentes tamanhos de tela
-- **Chat com IA**: Interface para comunicação com a IA para geração e modificação de código
+- Entrada de prompts em linguagem natural
+- Visualização em tempo real do código HTML/CSS gerado
+- Preview da landing page em desktop e dispositivos móveis
+- Upload de imagens para inclusão na landing page
+- Gerenciamento (listagem, visualização, edição e exclusão) de landing pages
 
 ### Backend
 
-#### APIs
+O backend é implementado como APIs Next.js (App Router) que gerenciam:
 
-- **`/api/landing-pages/route.ts`**: Gerenciamento de landing pages (listar, criar)
-- **`/api/landing-pages/[id]/route.ts`**: Operações em landing pages específicas (obter, atualizar, excluir)
-- **`/api/landing-pages/deepsite/session/[sessionId]/route.ts`**: Gerenciamento de sessões de criação
-- **`/api/landing-pages/deepsite/ask-ai/route.ts`**: Comunicação com a API DeepSeek
-- **`/api/landing-pages/deepsite/apply-diffs/route.ts`**: Aplicação de diferenças de código
-- **`/api/landing-pages/deepsite/save/route.ts`**: Salvamento de landing pages
-
-#### Utilitários
-
-- **`/api/landing-pages/deepsite/utils.ts`**: Funções para sanitização de HTML e gerenciamento de sessões
-- **`/api/landing-pages/deepsite/diff-utils.ts`**: Funções para aplicação de diferenças de código
+1. Comunicação com a API DeepSeek
+2. Gerenciamento de sessões
+3. Aplicação de diferenças de código
+4. Sanitização de HTML
+5. Armazenamento e recuperação de landing pages (via Prisma/PostgreSQL)
 
 ### Banco de Dados
 
-O módulo utiliza o Prisma ORM para interagir com o PostgreSQL. O modelo principal é:
+Utilizamos MongoDB para armazenar:
 
-```prisma
-model LandingPage {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  html        String   @db.Text
-  tags        String[]
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  sessionId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-```
+- Dados das landing pages (título, descrição, HTML, tags)
+- Informações do usuário (anônimo ou autenticado)
+- Timestamps de criação e atualização
 
-## Fluxos de Dados
+O módulo se integra com o restante do sistema que já utiliza MongoDB, aproveitando a conexão existente para armazenar as landing pages.
 
-### Criação de Landing Page
+## Fluxo de Funcionamento
 
-1. Usuário acessa `/dashboard/landing-pages/deepsite`
-2. Frontend cria uma nova sessão via `/api/landing-pages/deepsite/session`
-3. Usuário envia instruções para a IA via `/api/landing-pages/deepsite/ask-ai`
-4. IA gera código HTML/CSS e envia para o frontend
-5. Modificações incrementais são aplicadas via `/api/landing-pages/deepsite/apply-diffs`
-6. Usuário salva a landing page via `/api/landing-pages/deepsite/save`
+1. **Criação de Landing Page**:
+   - O usuário fornece instruções em linguagem natural
+   - A API envia essas instruções para a DeepSeek
+   - A DeepSeek gera alterações no código HTML/CSS
+   - O sistema aplica essas alterações e exibe o resultado em tempo real
 
-### Edição de Landing Page
+2. **Upload de Imagens**:
+   - O usuário pode fazer upload de imagens através da interface
+   - As imagens são salvas no diretório `/public/uploads/` com um nome único baseado em timestamp
+   - O sistema processa automaticamente a imagem e a envia para a IA com instruções detalhadas
+   - A IA incorpora a imagem na landing page usando o caminho correto
+   - As imagens ficam disponíveis publicamente através da URL `/uploads/[nome-do-arquivo]`
 
-1. Usuário acessa `/dashboard/landing-pages/edit/[id]`
-2. Frontend carrega a landing page via `/api/landing-pages/[id]`
-3. Usuário edita o HTML diretamente
-4. Alterações são salvas via `/api/landing-pages/[id]`
+3. **Salvamento**:
+   - O usuário pode salvar a landing page no banco de dados MongoDB
+   - O sistema suporta salvamento tanto para usuários autenticados quanto anônimos
+   - Um modo "fake" está disponível como fallback em caso de falha no banco de dados
+   - No modo "fake", as landing pages são armazenadas apenas temporariamente na sessão
+
+4. **Listagem e Gerenciamento**:
+   - Os usuários podem listar, visualizar, editar e excluir suas landing pages
+   - Para funcionar sem banco de dados, algumas operações de listagem podem não estar disponíveis
+
+## APIs
+
+### 1. `/api/landing-pages/deepsite/ask-ai`
+   - **Método**: POST
+   - **Parâmetros**: prompt, html, sessionId (opcional), image (opcional)
+   - **Função**: Envia prompt para a API DeepSeek e retorna sugestões de alterações
+
+### 2. `/api/landing-pages/deepsite/apply-diffs`
+   - **Método**: POST
+   - **Parâmetros**: html, diffs, sessionId (opcional)
+   - **Função**: Aplica as diferenças de código ao HTML atual
+
+### 3. `/api/landing-pages/deepsite/session/[sessionId]`
+   - **Método**: GET
+   - **Parâmetros**: sessionId (na URL)
+   - **Função**: Recupera uma sessão de edição específica
+
+### 4. `/api/landing-pages/deepsite/save`
+   - **Método**: POST
+   - **Parâmetros**: title, html, description (opcional), tags (opcional), sessionId (opcional)
+   - **Função**: Salva a landing page no banco de dados ou usa modo "fake" se o banco de dados não estiver disponível
+   - **Nota**: Suporta usuários anônimos e autenticados
+
+### 5. `/api/landing-pages/deepsite/upload-image`
+   - **Método**: POST
+   - **Parâmetros**: file (FormData)
+   - **Função**: Recebe e salva imagens enviadas pelos usuários
+   - **Retorno**: Caminho relativo para a imagem salva (`/uploads/nome-do-arquivo.jpg`)
+
+### 6. `/api/landing-pages`
+   - **Método**: GET
+   - **Função**: Lista todas as landing pages do usuário
+
+### 7. `/api/landing-pages/[id]`
+   - **Método**: GET, PUT, DELETE
+   - **Parâmetros**: id (na URL)
+   - **Função**: Recupera, atualiza ou exclui uma landing page específica
 
 ## Segurança
 
-### Autenticação e Autorização
+- Todo o HTML é sanitizado antes de ser armazenado ou exibido
+- As landing pages são associadas ao usuário que as criou (ou a um ID anônimo)
+- Controle de acesso via middleware para proteger rotas sensíveis
 
-- Todas as rotas são protegidas por autenticação via NextAuth
-- Verificação de propriedade: apenas o proprietário pode acessar suas landing pages
+## Dependências
 
-### Sanitização de HTML
+- **DeepSeek API**: Para geração de código
+- **MongoDB**: Banco de dados para armazenamento de landing pages
+- **Mongoose**: ODM para acesso ao MongoDB
+- **Next.js**: Framework React para frontend e backend
+- **sanitize-html**: Para sanitização de HTML
 
-O HTML gerado e salvo é sanitizado para evitar XSS e outros ataques:
-
-```typescript
-import sanitizeHtml from 'sanitize-html';
-
-const sanitizedHtml = sanitizeHtml(html, sanitizeOptions);
-```
-
-As opções de sanitização permitem elementos HTML e CSS seguros, bloqueando scripts e atributos perigosos.
-
-## Tratamento de Erros
-
-- Validação de entrada em todas as APIs
-- Tratamento de erros de conexão com a API de IA
-- Fallbacks para aplicação de diffs quando o algoritmo principal falha
-- Logs detalhados para depuração
-
-## Limitações e Considerações
-
-- O HTML gerado é autossuficiente (sem dependências externas)
-- Tamanho máximo do HTML: 10MB
-- Tempo limite para comunicação com a IA: 120 segundos
-- Sanitização pode remover alguns elementos avançados de CSS/JS
-- A API DeepSeek não suporta entrada de imagens como a OpenAI (as imagens enviadas serão ignoradas)
-
-## Manutenção e Escalabilidade
-
-### Monitoramento
-
-- Logs de erros em todas as APIs
-- Rastreamento de uso de créditos de IA
-- Métricas de performance para geração de código
-
-### Escalabilidade
-
-- Sessões armazenadas em banco de dados para persistência
-- Código modular para facilitar atualizações
-- Separação clara entre frontend e backend
-
-## Integração com Outros Módulos
-
-- Sistema de créditos para controle de uso da IA
-- Autenticação compartilhada com outros módulos
-- Interface consistente com o restante da plataforma
-
-## Próximos Passos e Melhorias Futuras
-
-- Implementação de templates pré-definidos
-- Exportação para hospedagem direta
-- Integração com sistemas de analytics
-- Editor visual WYSIWYG
-- Suporte a componentes dinâmicos (formulários funcionais, etc.)
-- Versionamento de landing pages
-
-## Configuração
-
-### Variáveis de Ambiente
-
-O sistema requer as seguintes variáveis de ambiente:
+## Variáveis de Ambiente
 
 ```
-# Banco de Dados PostgreSQL
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/sas_platform?schema=public"
-
-# DeepSeek API
+# DeepSeek
 DEEPSEEK_API_KEY=sua_chave_api_deepseek
-DEEPSEEK_MODEL_ID=deepseek-ai/deepseek-coder-v2-instruct-16k
+DEEPSEEK_MODEL_ID=deepseek-chat
 
-# DeepSite API (opcional)
-DEEPSITE_API_URL=http://localhost:5173/api
-DEEPSITE_API_KEY=deepsite_api_key_development
-DEEPSITE_API_PORT=5173
+# Banco de Dados
+MONGODB_URI=mongodb+srv://usuario:senha@cluster.mongodb.net/sas_platform
 ```
 
 ## Prompts e Configuração da IA
@@ -195,4 +157,44 @@ O prompt base inclui:
 - Formato esperado para retornar as modificações (usando diff blocks)
 - Diretrizes de estilo e boas práticas
 
-Os prompts são combinados com o HTML atual e a solicitação do usuário para gerar uma resposta completa. 
+Os prompts são combinados com o HTML atual e a solicitação do usuário para gerar uma resposta completa.
+
+## Modo "Fake" (Sem Banco de Dados)
+
+O sistema foi projetado para funcionar mesmo sem um banco de dados PostgreSQL configurado. Neste modo:
+
+1. As landing pages são criadas com IDs gerados aleatoriamente
+2. Os dados são armazenados apenas na memória durante a sessão
+3. As landing pages não são persistentes entre reinicializações do servidor
+4. A API retorna um campo `fake: true` nas respostas de salvamento
+5. Operações de listagem e consulta podem não funcionar completamente
+
+Para ativar o modo completo com persistência, configure a variável `DATABASE_URL` no arquivo `.env` e execute as migrações do Prisma.
+
+## Gerenciamento de Imagens
+
+O sistema permite o upload e incorporação de imagens nas landing pages:
+
+1. Os usuários podem fazer upload de imagens através da interface
+2. As imagens são validadas (tipo e tamanho) e armazenadas no diretório `public/uploads/`
+3. Um nome único baseado em timestamp é gerado para cada imagem para evitar colisões
+4. O sistema instrui a IA automaticamente sobre como incorporar a imagem na landing page
+5. As imagens são referenciadas com caminhos absolutos (`/uploads/timestamp-nome-do-arquivo.jpg`)
+6. O frontend exibe a imagem corretamente, tanto na pré-visualização quanto na landing page final
+
+### Processo de Upload
+
+1. **Interface do Usuário**: O usuário seleciona uma imagem através do seletor de arquivos
+2. **Upload para o Servidor**: A imagem é enviada via FormData para o endpoint `/api/landing-pages/deepsite/upload-image`
+3. **Processamento**: O servidor:
+   - Valida o tipo e tamanho da imagem
+   - Gera um nome único
+   - Salva a imagem em `/public/uploads/`
+   - Retorna um URL relativo e instruções HTML para uso
+4. **Instruções para IA**: Quando o usuário envia um prompt com uma imagem, o sistema inclui instruções detalhadas sobre como incorporar a imagem
+
+### Limitações e Considerações:
+   - Tamanho máximo de arquivo: 5MB
+   - Tipos de arquivo permitidos: imagens (JPEG, PNG, GIF, etc.)
+   - As imagens são armazenadas localmente (não em CDN)
+   - Os arquivos de imagem não são excluídos automaticamente quando a landing page é excluída 

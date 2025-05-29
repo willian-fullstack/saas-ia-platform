@@ -34,7 +34,7 @@ export default function LandingPagesPage() {
     try {
       setLoading(true);
       const response = await fetch("/api/landing-pages");
-      
+
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${await response.text()}`);
       }
@@ -66,7 +66,7 @@ export default function LandingPagesPage() {
       
       toast.success("Landing page excluída com sucesso");
       fetchLandingPages();
-    } catch (error) {
+      } catch (error) {
       console.error("Erro ao excluir landing page:", error);
       toast.error("Ocorreu um erro ao excluir a landing page");
     }
@@ -88,7 +88,7 @@ export default function LandingPagesPage() {
       year: "numeric",
     }).format(date);
   };
-
+  
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
@@ -102,7 +102,7 @@ export default function LandingPagesPage() {
           <PlusCircle className="mr-2 h-4 w-4" />
           Nova Landing Page
         </Button>
-      </div>
+            </div>
 
       <div className="mb-6">
         <div className="relative">
@@ -112,11 +112,11 @@ export default function LandingPagesPage() {
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {loading ? (
+              />
+                </div>
+            </div>
+            
+                {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-opacity-50 border-t-blue-500 rounded-full"></div>
         </div>
@@ -137,14 +137,14 @@ export default function LandingPagesPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between pt-2">
-                <Button
-                  variant="outline"
+              <Button 
+                variant="outline"
                   size="sm"
                   onClick={() => router.push(`/dashboard/landing-pages/${page.id}`)}
-                >
+              >
                   <FileCode className="mr-2 h-4 w-4" />
                   Visualizar
-                </Button>
+              </Button>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -155,7 +155,7 @@ export default function LandingPagesPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
+                  size="sm" 
                     className="text-red-500 hover:text-red-700"
                     onClick={() => handleDelete(page.id)}
                   >
@@ -165,7 +165,7 @@ export default function LandingPagesPage() {
               </CardFooter>
             </Card>
           ))}
-        </div>
+                </div>
       ) : (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
           <FileCode className="mx-auto h-12 w-12 text-gray-400" />
@@ -176,14 +176,14 @@ export default function LandingPagesPage() {
               : "Você ainda não criou nenhuma landing page. Clique no botão acima para criar uma."}
           </p>
           {searchQuery && (
-            <Button
-              variant="outline"
+                  <Button 
+                    variant="outline" 
               className="mt-4"
               onClick={() => setSearchQuery("")}
             >
               Limpar busca
-            </Button>
-          )}
+                          </Button>
+              )}
         </div>
       )}
     </div>

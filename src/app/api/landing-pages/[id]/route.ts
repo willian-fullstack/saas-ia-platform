@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
-import { sanitizeOptions } from '../deepsite/utils';
+import { sanitizeOptions as baseSanitizeOptions } from '../deepsite/utils';
 import sanitizeHtml from 'sanitize-html';
+import { getLandingPageById, updateLandingPage, deleteLandingPage } from '@/lib/db/models/LandingPage';
+import mongoose from 'mongoose';
 
 // Obter uma landing page específica
 export async function GET(
@@ -19,12 +20,13 @@ export async function GET(
     
     const { id } = params;
     
+    // Verificar se o ID é válido para MongoDB
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'ID de landing page inválido' }, { status: 400 });
+    }
+    
     // Buscar a landing page
-    const landingPage = await prisma.landingPage.findUnique({
-      where: {
-        id,
-      },
-    });
+    const landingPage = await getLandingPageById(id);
     
     // Verificar se a landing page existe
     if (!landingPage) {
@@ -36,7 +38,19 @@ export async function GET(
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }
     
-    return NextResponse.json(landingPage);
+    // Converter o documento para o formato esperado
+    const formattedLandingPage = {
+      id: landingPage._id.toString(),
+      title: landingPage.title,
+      description: landingPage.description || '',
+      html: landingPage.html,
+      tags: landingPage.tags || [],
+      userId: landingPage.userId,
+      createdAt: landingPage.createdAt,
+      updatedAt: landingPage.updatedAt
+    };
+    
+    return NextResponse.json(formattedLandingPage);
     
   } catch (error: any) {
     console.error('Erro ao obter landing page:', error);
@@ -58,12 +72,13 @@ export async function PUT(
     
     const { id } = params;
     
+    // Verificar se o ID é válido para MongoDB
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'ID de landing page inválido' }, { status: 400 });
+    }
+    
     // Buscar a landing page
-    const existingLandingPage = await prisma.landingPage.findUnique({
-      where: {
-        id,
-      },
-    });
+    const existingLandingPage = await getLandingPageById(id);
     
     // Verificar se a landing page existe
     if (!existingLandingPage) {
@@ -87,28 +102,30 @@ export async function PUT(
     }
     
     // Sanitizar o HTML
+    const sanitizeOptions = {
+      ...baseSanitizeOptions,
+      allowVulnerableTags: true // Necessário para permitir tags como style e script
+    };
     const sanitizedHtml = sanitizeHtml(html, sanitizeOptions);
     
     // Atualizar a landing page
-    const updatedLandingPage = await prisma.landingPage.update({
-      where: {
-        id,
-      },
-      data: {
-        title,
-        html: sanitizedHtml,
-        description: description || '',
-        tags: tags || [],
-        updatedAt: new Date(),
-      },
+    const updatedLandingPage = await updateLandingPage(id, {
+      title,
+      html: sanitizedHtml,
+      description: description || '',
+      tags: tags || [],
     });
+    
+    if (!updatedLandingPage) {
+      return NextResponse.json({ error: 'Erro ao atualizar landing page' }, { status: 500 });
+    }
     
     return NextResponse.json({
       success: true,
       landingPage: {
-        id: updatedLandingPage.id,
+        id: updatedLandingPage._id.toString(),
         title: updatedLandingPage.title,
-        description: updatedLandingPage.description,
+        description: updatedLandingPage.description || '',
         createdAt: updatedLandingPage.createdAt,
         updatedAt: updatedLandingPage.updatedAt,
       },
@@ -134,12 +151,13 @@ export async function DELETE(
     
     const { id } = params;
     
+    // Verificar se o ID é válido para MongoDB
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'ID de landing page inválido' }, { status: 400 });
+    }
+    
     // Buscar a landing page
-    const landingPage = await prisma.landingPage.findUnique({
-      where: {
-        id,
-      },
-    });
+    const landingPage = await getLandingPageById(id);
     
     // Verificar se a landing page existe
     if (!landingPage) {
@@ -152,11 +170,7 @@ export async function DELETE(
     }
     
     // Excluir a landing page
-    await prisma.landingPage.delete({
-      where: {
-        id,
-      },
-    });
+    await deleteLandingPage(id);
     
     return NextResponse.json({ success: true });
     

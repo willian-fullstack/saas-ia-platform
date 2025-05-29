@@ -29,15 +29,15 @@ class DeepSeekClient {
     // Garantir que max_tokens esteja dentro dos limites permitidos
     const safeMaxTokens = Math.min(16000, max_tokens);
     
-    const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
-      headers: {
+        headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
+        },
+        body: JSON.stringify({
         model,
-        messages,
+          messages,
         max_tokens: safeMaxTokens,
         temperature,
         stream: true,
@@ -45,8 +45,8 @@ class DeepSeekClient {
     });
 
     console.log(`[DeepSeek API] Resposta recebida: status=${response.status}`);
-    
-    if (!response.ok) {
+      
+      if (!response.ok) {
       let errorMessage = `DeepSeek API error: ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();
@@ -119,6 +119,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }
     
+    // Preparar conteúdo adicional para o prompt quando há imagem
+    let imageInstructions = '';
+    if (image) {
+      console.log("Imagem detectada:", image.name, "tamanho:", image.size);
+      
+      // Gerar um nome de arquivo único com timestamp para evitar colisões
+      const timestamp = Date.now();
+      const originalName = image.name.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+      const fileName = `${timestamp}-${originalName}`;
+      
+      // Salvar a imagem no diretório de uploads
+      try {
+        const bytes = await image.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        // Garantir que o diretório de uploads exista
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+        const filePath = path.join(uploadDir, fileName);
+        
+        await fs.promises.mkdir(uploadDir, { recursive: true });
+        await fs.promises.writeFile(filePath, buffer);
+        
+        console.log(`Imagem salva com sucesso em: ${filePath}`);
+        
+        const imageUrl = `/uploads/${fileName}`;
+        
+        imageInstructions = `
+O usuário enviou uma imagem chamada "${originalName}" que foi salva em "${imageUrl}".
+
+MUITO IMPORTANTE: Você DEVE incorporar esta imagem na landing page seguindo estas instruções precisas:
+1. Adicione uma tag <img> com src="${imageUrl}" 
+2. Certifique-se de adicionar propriedades de largura apropriadas (width="100%" ou uma largura específica)
+3. Adicione as seguintes classes CSS para garantir que a imagem seja responsiva:
+   class="responsive-image"
+4. Adicione alt="${originalName}" para acessibilidade
+5. Posicione a imagem em um local de destaque apropriado para o contexto da landing page
+6. Embrulhe a imagem em uma div com classe apropriada para melhor formatação
+
+Exemplo de código HTML para a imagem:
+\`\`\`html
+<div class="product-image-container">
+  <img src="${imageUrl}" alt="${originalName}" class="responsive-image" width="100%" />
+</div>
+\`\`\`
+
+Se a landing page já contém uma imagem principal de produto, substitua-a por esta nova imagem.
+Certifique-se de remover qualquer imagem placeholder existente.
+Use EXATAMENTE o caminho ${imageUrl} para a imagem - não modifique ou substitua este caminho.
+`;
+      } catch (error) {
+        console.error("Erro ao salvar a imagem:", error);
+        imageInstructions = `
+O usuário enviou uma imagem, mas ocorreu um erro ao salvá-la. 
+Por favor, informe ao usuário que houve um problema com o upload da imagem e sugira que ele tente novamente.
+`;
+      }
+    }
+    
     // Preparar as mensagens para a API
     const messages = [
       {
@@ -147,7 +205,7 @@ Você pode incluir múltiplos blocos de diferença em sua resposta. Certifique-s
 ${html}
 \`\`\`
 
-Solicitação do usuário: ${prompt}
+Solicitação do usuário: ${prompt}${imageInstructions ? '\n\n' + imageInstructions : ''}
 
 Por favor, faça as modificações necessárias e retorne os blocos de diferença.`
       }
@@ -155,7 +213,7 @@ Por favor, faça as modificações necessárias e retorne os blocos de diferenç
     
     // Nota: DeepSeek não suporta imagens atualmente, então não adicionamos a imagem às mensagens
     if (image) {
-      console.log("Aviso: Upload de imagem detectado, mas DeepSeek não suporta entrada de imagens. A imagem será ignorada.");
+      console.log("Aviso: Upload de imagem detectado. Instruções especiais para incorporação da imagem foram adicionadas ao prompt.");
     }
     
     try {
@@ -169,7 +227,7 @@ Por favor, faça as modificações necessárias e retorne os blocos de diferenç
       
       // Criar um stream legível para enviar ao cliente
       const readableStream = new ReadableStream({
-        async start(controller) {
+      async start(controller) {
           if (!streamBody) {
             controller.close();
             return;
@@ -240,7 +298,7 @@ Por favor, faça as modificações necessárias e retorne os blocos de diferenç
           
           nodeStream.on('error', (error) => {
             console.error('Erro no stream do DeepSeek:', error);
-            controller.error(error);
+          controller.error(error);
           });
         }
       });

@@ -9,6 +9,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { saveUserCreation } from "@/lib/db/models/UserCreation";
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getLandingPagesByUserId } from '@/lib/db/models/LandingPage';
 
 // Função para fornecer CSS padrão com base no estilo selecionado
 function getDefaultCSS(style: string): string {
@@ -2650,6 +2651,8 @@ export async function GET(request: NextRequest) {
   try {
     // Verificar autenticação
     const session = await getServerSession(authOptions);
+    console.log('Session user ID:', session?.user?.id, 'Role:', session?.user?.role);
+    
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
@@ -2659,39 +2662,41 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '100');
     const offset = parseInt(url.searchParams.get('offset') || '0');
     
-    // Buscar landing pages do usuário
-    const landingPages = await prisma.landingPage.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        tags: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      take: limit,
-      skip: offset,
-    });
-    
-    // Contar o total de landing pages
-    const total = await prisma.landingPage.count({
-      where: {
-        userId: session.user.id,
-      },
-    });
-    
-    return NextResponse.json({
-      landingPages,
-      total,
-      limit,
-      offset,
-    });
+    try {
+      // Buscar landing pages do usuário do MongoDB
+      const landingPages = await getLandingPagesByUserId(session.user.id);
+      
+      // Converter documentos MongoDB para o formato esperado
+      const formattedLandingPages = landingPages.map(lp => ({
+        id: lp._id.toString(),
+        title: lp.title,
+        description: lp.description || '',
+        tags: lp.tags || [],
+        createdAt: lp.createdAt,
+        updatedAt: lp.updatedAt
+      }));
+      
+      // Aplicar paginação no array já buscado
+      const paginatedLandingPages = formattedLandingPages.slice(offset, offset + limit);
+      
+      return NextResponse.json({
+        landingPages: paginatedLandingPages,
+        total: formattedLandingPages.length,
+        limit,
+        offset,
+      });
+    } catch (dbError) {
+      console.error('Erro ao listar landing pages do MongoDB:', dbError);
+      
+      // Retornar array vazio em caso de erro
+      return NextResponse.json({
+        landingPages: [],
+        total: 0,
+        limit,
+        offset,
+        error: 'Erro ao acessar o banco de dados'
+      });
+    }
     
   } catch (error: any) {
     console.error('Erro ao listar landing pages:', error);

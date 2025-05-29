@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
-import { sanitizeOptions } from '../utils';
+import { sanitizeOptions as baseSanitizeOptions } from '../utils';
 import sanitizeHtml from 'sanitize-html';
+import { createLandingPage } from '@/lib/db/models/LandingPage';
+
+// Interface para o objeto landingPage com propriedade fake opcional
+interface LandingPageWithFake {
+  id: string;
+  title: string;
+  description: string | null;
+  html: string;
+  tags: string[];
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  fake?: boolean;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação
+    // Verificar autenticação (opcional)
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
     
     // Obter os dados da requisição
     const { title, html, sessionId, description, tags } = await request.json();
+    
+    console.log('Tentando salvar landing page:', { title, sessionId, description });
     
     if (!title) {
       return NextResponse.json({ error: 'Título é obrigatório' }, { status: 400 });
@@ -25,28 +37,69 @@ export async function POST(request: NextRequest) {
     }
     
     // Sanitizar o HTML
+    const sanitizeOptions = {
+      ...baseSanitizeOptions,
+      allowVulnerableTags: true // Necessário para permitir tags como style e script
+    };
     const sanitizedHtml = sanitizeHtml(html, sanitizeOptions);
     
-    // Salvar a landing page no banco de dados
-    const landingPage = await prisma.landingPage.create({
-      data: {
+    // Definir userId (anônimo ou autenticado)
+    const userId = session?.user?.id || 'anonymous-user';
+    
+    let landingPage: LandingPageWithFake;
+    
+    try {
+      // Salvar no MongoDB
+      const newLandingPage = await createLandingPage({
         title,
         html: sanitizedHtml,
         description: description || '',
         tags: tags || [],
-        userId: session.user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+        userId,
+      });
+      
+      console.log('Landing page salva com sucesso no MongoDB:', newLandingPage._id);
+      
+      // Converter o documento do MongoDB para o formato esperado
+      landingPage = {
+        id: newLandingPage._id.toString(),
+        title: newLandingPage.title,
+        description: newLandingPage.description || null,
+        html: newLandingPage.html,
+        tags: newLandingPage.tags,
+        userId: newLandingPage.userId,
+        createdAt: newLandingPage.createdAt,
+        updatedAt: newLandingPage.updatedAt,
+      };
+    } catch (dbError) {
+      console.error('Erro ao salvar no MongoDB:', dbError);
+      
+      // Criar um objeto simulado apenas em caso de erro
+      const now = new Date();
+      landingPage = {
+        id: `tmp_${Date.now()}`,
+        title,
+        description: description || '',
+        tags: tags || [],
+        userId,
+        html: sanitizedHtml,
+        createdAt: now,
+        updatedAt: now,
+        fake: true
+      };
+      
+      console.log('Landing page criada em modo fake com ID:', landingPage.id);
+    }
     
     // Se houver uma sessão, excluí-la (pois a landing page já foi salva)
     if (sessionId && global.deepsiteSessions?.[sessionId]) {
       delete global.deepsiteSessions[sessionId];
+      console.log('Sessão excluída após salvamento:', sessionId);
     }
     
     return NextResponse.json({
       success: true,
+      fake: !!landingPage.fake,
       landingPage: {
         id: landingPage.id,
         title: landingPage.title,

@@ -11,7 +11,9 @@ const publicApiRoutes = [
   '/api/webhooks', 
   '/api/landing-pages/deepsite/ask-ai',
   '/api/landing-pages/deepsite/session',
-  '/api/landing-pages/deepsite/apply-diffs'
+  '/api/landing-pages/deepsite/apply-diffs',
+  '/api/landing-pages/deepsite/save',
+  '/api/landing-pages/deepsite/upload-image'
 ];
 
 // Middleware de autenticação
