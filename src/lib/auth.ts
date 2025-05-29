@@ -4,12 +4,36 @@ import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { AuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 // Opções de autenticação para uso com NextAuth
 export const authOptions: AuthOptions = {
   // Configurar provedores, callbacks, etc.
-  // Esta é uma implementação mínima - ajuste conforme necessário
-  providers: [],
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Senha", type: "password" }
+      },
+      async authorize(credentials) {
+        // Em ambiente de desenvolvimento, permitir qualquer login
+        if (process.env.NODE_ENV === 'development') {
+          return {
+            id: "dev-user-id",
+            name: "Usuário de Desenvolvimento",
+            email: credentials?.email || "dev@example.com",
+            role: "admin"
+          };
+        }
+        
+        // Implementação real de autenticação aqui
+        // ...
+        
+        return null;
+      }
+    }),
+  ],
   session: {
     strategy: 'jwt',
   },

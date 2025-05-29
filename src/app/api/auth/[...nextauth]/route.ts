@@ -40,6 +40,17 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
+          // Em ambiente de desenvolvimento, permitir login sem verificação
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Login em ambiente de desenvolvimento aceito automaticamente');
+            return {
+              id: "dev-user-id",
+              name: "Usuário de Desenvolvimento",
+              email: credentials?.email || "dev@example.com",
+              role: "admin"
+            };
+          }
+          
           // Validar credenciais
           if (!credentials?.email || !credentials?.password) {
             return null;

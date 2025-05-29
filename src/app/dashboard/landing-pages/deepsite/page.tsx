@@ -307,6 +307,13 @@ export default function DeepSitePage() {
     try {
       setIsSaving(true);
       
+      console.log('Iniciando salvamento da landing page:', {
+        title: landingPageTitle,
+        description: landingPageDescription,
+        sessionId,
+        htmlLength: html?.length || 0
+      });
+      
       const response = await fetch('/api/landing-pages/deepsite/save', {
         method: 'POST',
         headers: {
@@ -321,20 +328,25 @@ export default function DeepSitePage() {
         }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${await response.text()}`);
+        throw new Error(data.error || 'Erro ao salvar landing page');
       }
       
-      const result = await response.json();
+      console.log('Landing page salva com sucesso:', data);
       
-      toast.success("Landing page salva com sucesso!");
-      setShowSaveModal(false);
+      toast.success('Landing page salva com sucesso!');
       
-      // Redirecionar para a lista de landing pages
-      router.push('/dashboard/landing-pages');
+      // Adicionar um pequeno atraso antes do redirecionamento para garantir que o toast seja exibido
+      setTimeout(() => {
+        // Redirecionar para a página de listagem com um parâmetro de consulta para forçar atualização
+        router.push('/dashboard/landing-pages?refresh=true');
+      }, 1500);
+      
     } catch (error) {
-      console.error("Erro ao salvar landing page:", error);
-      toast.error("Ocorreu um erro ao salvar a landing page");
+      console.error('Erro ao salvar landing page:', error);
+      toast.error('Erro ao salvar landing page. Por favor, tente novamente.');
     } finally {
       setIsSaving(false);
     }

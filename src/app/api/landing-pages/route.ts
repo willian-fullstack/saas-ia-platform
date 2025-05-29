@@ -2653,7 +2653,10 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     console.log('Session user ID:', session?.user?.id, 'Role:', session?.user?.role);
     
-    if (!session || !session.user) {
+    // Permitir acesso em ambiente de desenvolvimento mesmo sem autenticação
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (!session?.user && !isDev) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
     
@@ -2663,43 +2666,53 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
     
     try {
-      // Buscar landing pages do usuário do MongoDB
-      const landingPages = await getLandingPagesByUserId(session.user.id);
+      // Usar ID do usuário da sessão ou ID de desenvolvimento
+      const userId = session?.user?.id || 'dev-user-id';
+      console.log(`Buscando landing pages para o usuário: ${userId}`);
       
-      // Converter documentos MongoDB para o formato esperado
-      const formattedLandingPages = landingPages.map(lp => ({
-        id: lp._id.toString(),
-        title: lp.title,
-        description: lp.description || '',
-        tags: lp.tags || [],
-        createdAt: lp.createdAt,
-        updatedAt: lp.updatedAt
+      let landingPages: any[] = [];
+      
+      // Em ambiente de desenvolvimento, buscar landing pages do usuário autenticado e do usuário de desenvolvimento
+      if (isDev) {
+        console.log('Ambiente de desenvolvimento: buscando landing pages para usuário autenticado e usuário de desenvolvimento');
+        
+        // Buscar landing pages do usuário autenticado (se houver sessão)
+        if (session?.user?.id) {
+          const userLandingPages = await getLandingPagesByUserId(session.user.id);
+          landingPages = [...userLandingPages];
+          console.log(`Encontradas ${userLandingPages.length} landing pages para o usuário autenticado ${session.user.id}`);
+        }
+        
+        // Buscar landing pages do usuário de desenvolvimento
+        const devLandingPages = await getLandingPagesByUserId('dev-user-id');
+        landingPages = [...landingPages, ...devLandingPages];
+        console.log(`Encontradas ${devLandingPages.length} landing pages para o usuário de desenvolvimento`);
+        
+        console.log(`Total de landing pages encontradas: ${landingPages.length}`);
+      } else {
+        // Em produção, buscar apenas as landing pages do usuário autenticado
+        landingPages = await getLandingPagesByUserId(userId);
+      }
+      
+      // Mapear os resultados para o formato esperado
+      const formattedLandingPages = landingPages.map((page: any) => ({
+        id: page._id.toString(),
+        title: page.title,
+        description: page.description || '',
+        createdAt: page.createdAt.toISOString(),
+        updatedAt: page.updatedAt.toISOString()
       }));
       
-      // Aplicar paginação no array já buscado
-      const paginatedLandingPages = formattedLandingPages.slice(offset, offset + limit);
-      
       return NextResponse.json({
-        landingPages: paginatedLandingPages,
+        landingPages: formattedLandingPages,
         total: formattedLandingPages.length,
-        limit,
-        offset,
       });
-    } catch (dbError) {
-      console.error('Erro ao listar landing pages do MongoDB:', dbError);
-      
-      // Retornar array vazio em caso de erro
-      return NextResponse.json({
-        landingPages: [],
-        total: 0,
-        limit,
-        offset,
-        error: 'Erro ao acessar o banco de dados'
-      });
+    } catch (error) {
+      console.error('Erro ao buscar landing pages:', error);
+      return NextResponse.json({ error: 'Erro ao buscar landing pages' }, { status: 500 });
     }
-    
-  } catch (error: any) {
-    console.error('Erro ao listar landing pages:', error);
-    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 });
+  } catch (error) {
+    console.error('Erro na requisição GET de landing pages:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 } 

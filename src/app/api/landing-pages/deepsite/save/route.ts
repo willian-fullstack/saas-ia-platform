@@ -20,19 +20,45 @@ interface LandingPageWithFake {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação (opcional)
+    console.log('Iniciando processamento de salvamento de landing page...');
+    
+    // Verificar autenticação
     const session = await getServerSession(authOptions);
+    console.log('Sessão obtida:', session ? 'Sim' : 'Não');
+    console.log('Usuário na sessão:', session?.user?.id || 'Nenhum');
+    
+    // Usar ID de usuário de desenvolvimento se não houver sessão
+    let userId = session?.user?.id || 'dev-user-id';
+    let isAuthenticated = !!session?.user || process.env.NODE_ENV === 'development';
+    
+    console.log('Usuário autenticado:', isAuthenticated ? 'Sim' : 'Não');
+    console.log('ID do usuário para salvamento:', userId);
+    
+    // Verificar se estamos em ambiente de desenvolvimento sem sessão
+    if (!session && process.env.NODE_ENV === 'development') {
+      console.log('Ambiente de desenvolvimento detectado, continuando sem autenticação');
+    } else if (!isAuthenticated) {
+      console.error('Tentativa de salvamento sem autenticação');
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
     
     // Obter os dados da requisição
     const { title, html, sessionId, description, tags } = await request.json();
     
-    console.log('Tentando salvar landing page:', { title, sessionId, description });
+    console.log('Dados recebidos:', { 
+      title, 
+      sessionId,
+      description,
+      contentLength: html?.length || 0
+    });
     
     if (!title) {
+      console.error('Tentativa de salvar landing page sem título');
       return NextResponse.json({ error: 'Título é obrigatório' }, { status: 400 });
     }
     
     if (!html) {
+      console.error('Tentativa de salvar landing page sem HTML');
       return NextResponse.json({ error: 'HTML é obrigatório' }, { status: 400 });
     }
     
@@ -43,12 +69,11 @@ export async function POST(request: NextRequest) {
     };
     const sanitizedHtml = sanitizeHtml(html, sanitizeOptions);
     
-    // Definir userId (anônimo ou autenticado)
-    const userId = session?.user?.id || 'anonymous-user';
-    
     let landingPage: LandingPageWithFake;
     
     try {
+      console.log(`Iniciando salvamento da landing page no MongoDB para o usuário ${userId}`);
+      
       // Salvar no MongoDB
       const newLandingPage = await createLandingPage({
         title,
