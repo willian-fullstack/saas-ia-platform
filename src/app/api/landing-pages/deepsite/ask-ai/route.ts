@@ -157,6 +157,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'HTML é obrigatório' }, { status: 400 });
     }
     
+    // Função para extrair partes relevantes do HTML para reduzir o tamanho
+    const extractRelevantHtml = (fullHtml: string, maxLength: number = 35000) => {
+      if (fullHtml.length <= maxLength) return fullHtml;
+      
+      try {
+        // Extrair conteúdo do body, se possível
+        const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        let relevantHtml = bodyMatch ? bodyMatch[1] : fullHtml;
+        
+        // Se ainda for muito grande, pegar o início e o fim
+        if (relevantHtml.length > maxLength) {
+          const halfLength = Math.floor(maxLength / 2);
+          relevantHtml = relevantHtml.substring(0, halfLength) + 
+            '\n\n... [Conteúdo do meio truncado] ...\n\n' +
+            relevantHtml.substring(relevantHtml.length - halfLength);
+        }
+        
+        // Adicionar comentários HTML no início e fim para indicar que é um trecho
+        return `<!-- Início do trecho de HTML -->\n${relevantHtml}\n<!-- Fim do trecho de HTML -->`;
+      } catch (error) {
+        console.error('Erro ao extrair partes relevantes do HTML:', error);
+        // Em caso de erro, truncar simplesmente
+        return fullHtml.substring(0, maxLength) + '\n\n... [Conteúdo truncado] ...';
+      }
+    };
+    
     // Verificar se o usuário tem sessão válida
     let currentSessionId = sessionId;
     if (!currentSessionId || !global.deepsiteSessions?.[currentSessionId]) {
@@ -230,10 +256,10 @@ Por favor, informe ao usuário que houve um problema com o upload da imagem e su
         content: `Aqui está o HTML atual da landing page:
 
 \`\`\`html
-${html}
+${html.length > 35000 ? extractRelevantHtml(html) : html}
 \`\`\`
 
-Solicitação do usuário: ${prompt}${imageInstructions ? '\n\n' + imageInstructions : ''}
+${html.length > 35000 ? 'IMPORTANTE: O HTML foi truncado devido ao seu tamanho. Trabalhe com o trecho fornecido, e considere que suas sugestões devem ser aplicáveis mesmo que não veja todo o código.\n\n' : ''}Solicitação do usuário: ${prompt}${imageInstructions ? '\n\n' + imageInstructions : ''}
 
 Por favor, faça as modificações necessárias e retorne os blocos de diferença.`
       }
@@ -243,7 +269,7 @@ Por favor, faça as modificações necessárias e retorne os blocos de diferenç
       // Criar stream de resposta
       const streamBody = await aiClient.chatCompletionStream({
         messages: messages,
-        max_tokens: 8000,
+        max_tokens: 4000, // Reduzindo para economizar tokens
         temperature: 0.7,
       });
       

@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 import { connectToDB } from '../connection';
 
 // Tipos de criações suportadas
@@ -32,11 +32,21 @@ export interface LandingPageContent {
 
 export interface OfferContent {
   productName: string;
-  description: string;
+  productDescription: string;
+  targetAudience: string;
+  features: string[];
   benefits: string[];
-  price?: string;
+  offerDescription: string;
+  price: number;
+  originalPrice?: number;
+  callToAction: string;
+  expiration?: string;
   bonuses?: string[];
-  result: string;
+  guarantees?: string[];
+  testimonials?: Array<{
+    name: string;
+    content: string;
+  }>;
 }
 
 // Tipo de união para todos os conteúdos possíveis
@@ -46,9 +56,9 @@ export type ContentType =
   | OfferContent 
   | Record<string, unknown>;
 
-// Interface para o modelo de criações do usuário
-export interface IUserCreation {
-  userId: mongoose.Types.ObjectId;
+// Interface para o modelo de UserCreation
+export interface IUserCreation extends Document {
+  userId: mongoose.Types.ObjectId | string;
   title: string;
   type: CreationType;
   content: ContentType;
@@ -56,14 +66,13 @@ export interface IUserCreation {
   updatedAt: Date;
 }
 
-// Schema para o modelo de criações
-const userCreationSchema = new mongoose.Schema<IUserCreation>(
+// Schema para o modelo UserCreation
+const userCreationSchema = new Schema(
   {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'ID do usuário é obrigatório'],
-      index: true, // Índice para melhorar a performance de busca
     },
     title: {
       type: String,
@@ -81,13 +90,12 @@ const userCreationSchema = new mongoose.Schema<IUserCreation>(
     },
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt
+    timestamps: true,
   }
 );
 
 // Verifica se o modelo já existe para evitar redefinição
-const UserCreation = mongoose.models.UserCreation || 
-  mongoose.model<IUserCreation>('UserCreation', userCreationSchema);
+const UserCreation = mongoose.models.UserCreation || mongoose.model<IUserCreation>('UserCreation', userCreationSchema);
 
 export default UserCreation;
 
@@ -113,15 +121,21 @@ export async function saveUserCreation(
 }
 
 // Função para obter todas as criações de um usuário
-export async function getUserCreations(userId: string | mongoose.Types.ObjectId) {
+export async function getUserCreations(userId: string) {
   await connectToDB();
   
-  const userIdObj = typeof userId === 'string' 
-    ? new mongoose.Types.ObjectId(userId) 
-    : userId;
+  // Validar e converter ID
+  let userIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID de usuário inválido ao listar criações: ${userId}`, error);
+    throw new Error('ID de usuário inválido');
+  }
   
   return UserCreation.find({ userId: userIdObj })
-    .sort({ createdAt: -1 }) // Ordenar do mais recente para o mais antigo
+    .sort({ createdAt: -1 })
+    .lean()
     .exec();
 }
 
@@ -142,34 +156,93 @@ export async function getUserCreationsByType(
 }
 
 // Função para obter uma criação específica
-export async function getUserCreationById(creationId: string | mongoose.Types.ObjectId) {
+export async function getUserCreationById(id: string, userId: string) {
   await connectToDB();
   
-  const creationIdObj = typeof creationId === 'string' 
-    ? new mongoose.Types.ObjectId(creationId) 
-    : creationId;
+  // Validar e converter IDs
+  let userCreationId, userIdObj;
+  try {
+    userCreationId = new mongoose.Types.ObjectId(id);
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID inválido: userCreationId=${id}, userId=${userId}`, error);
+    throw new Error('ID inválido');
+  }
   
-  return UserCreation.findById(creationIdObj).exec();
+  return UserCreation.findOne({ 
+    _id: userCreationId,
+    userId: userIdObj 
+  })
+    .lean()
+    .exec();
 }
 
-// Função para excluir uma criação
-export async function deleteUserCreation(
-  creationId: string | mongoose.Types.ObjectId,
-  userId: string | mongoose.Types.ObjectId
+// Função para criar uma nova criação de usuário
+export async function createUserCreation(data: {
+  userId: string;
+  title: string;
+  type: CreationType;
+  content: ContentType;
+}) {
+  await connectToDB();
+  
+  // Validar e converter ID
+  let userIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(data.userId);
+  } catch (error) {
+    console.error(`ID de usuário inválido ao criar: ${data.userId}`, error);
+    throw new Error('ID de usuário inválido');
+  }
+  
+  // Criar com o ID convertido
+  return UserCreation.create({
+    ...data,
+    userId: userIdObj
+  });
+}
+
+// Função para atualizar uma criação existente
+export async function updateUserCreation(
+  id: string,
+  userId: string,
+  data: Partial<IUserCreation>
 ) {
   await connectToDB();
   
-  const creationIdObj = typeof creationId === 'string' 
-    ? new mongoose.Types.ObjectId(creationId) 
-    : creationId;
+  // Validar e converter IDs
+  let userCreationId, userIdObj;
+  try {
+    userCreationId = new mongoose.Types.ObjectId(id);
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID inválido: userCreationId=${id}, userId=${userId}`, error);
+    throw new Error('ID inválido');
+  }
   
-  const userIdObj = typeof userId === 'string' 
-    ? new mongoose.Types.ObjectId(userId) 
-    : userId;
+  return UserCreation.findOneAndUpdate(
+    { _id: userCreationId, userId: userIdObj },
+    data,
+    { new: true }
+  ).exec();
+}
+
+// Função para excluir uma criação
+export async function deleteUserCreation(id: string, userId: string) {
+  await connectToDB();
   
-  // Exclui apenas se pertencer ao usuário correto
-  return UserCreation.findOneAndDelete({
-    _id: creationIdObj,
-    userId: userIdObj
+  // Validar e converter IDs
+  let userCreationId, userIdObj;
+  try {
+    userCreationId = new mongoose.Types.ObjectId(id);
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID inválido: userCreationId=${id}, userId=${userId}`, error);
+    throw new Error('ID inválido');
+  }
+  
+  return UserCreation.findOneAndDelete({ 
+    _id: userCreationId,
+    userId: userIdObj 
   }).exec();
 } 

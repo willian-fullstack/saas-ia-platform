@@ -232,6 +232,11 @@ export default function DeepSiteEditor({
       return;
     }
     
+    // Verificar tamanho do HTML
+    if (sessionData.html.length > 50000) {
+      toast.warning("O HTML da landing page é muito grande. A IA analisará apenas uma parte do código.");
+    }
+    
     // Guardar a pergunta
     const question = aiPrompt.trim();
     

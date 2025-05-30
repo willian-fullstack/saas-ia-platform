@@ -11,7 +11,8 @@ import {
   Trash2,
   Image as ImageIcon,
   Code,
-  LayoutGrid
+  LayoutGrid,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ import { format } from "date-fns";
 import LandingPageGenerator from "../../../components/landing-pages/LandingPageGenerator";
 import LandingPagesList from "../../../components/landing-pages/LandingPagesList";
 import DeepSiteEditor from "../../../components/landing-pages/DeepSiteEditor";
+import CopyImporter from "../../../components/landing-pages/CopyImporter";
 
 // Interface da LandingPage
 interface LandingPage {
@@ -284,6 +286,10 @@ export default function LandingPagesPage() {
               <PlusCircle className="h-4 w-4" />
               <span>Gerar Nova</span>
             </TabsTrigger>
+            <TabsTrigger value="import-copy" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" />
+              <span>Importar Copy</span>
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="list" className="space-y-4">
@@ -301,6 +307,10 @@ export default function LandingPagesPage() {
           
           <TabsContent value="generator">
             <LandingPageGenerator onSuccess={handleLandingPageGenerated} />
+          </TabsContent>
+          
+          <TabsContent value="import-copy">
+            <CopyImporter onSuccess={handleLandingPageGenerated} />
           </TabsContent>
         </Tabs>
       )}

@@ -145,24 +145,43 @@ export async function isCpfInUse(cpf: string): Promise<boolean> {
 // Função de helper para obter usuário por ID
 export async function getUserById(id: string) {
   await connectToDB();
-  return User.findById(id).exec();
+  
+  // Validar e converter ID
+  let userIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(id);
+  } catch (error) {
+    console.error(`ID de usuário inválido ao buscar: ${id}`, error);
+    throw new Error('ID de usuário inválido');
+  }
+  
+  return User.findById(userIdObj).exec();
 }
 
 // Função de helper para atualizar créditos do usuário
 export async function updateUserCredits(userId: string, credits: number, replace: boolean = false) {
   await connectToDB();
   
+  // Validar e converter ID
+  let userIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID de usuário inválido ao atualizar créditos: ${userId}`, error);
+    throw new Error('ID de usuário inválido');
+  }
+  
   if (replace) {
     // Se replace for true, substitui o valor atual pelos créditos informados
     return User.findByIdAndUpdate(
-      userId,
+      userIdObj,
       { credits },
       { new: true }
     ).exec();
   } else {
     // Caso contrário, adiciona os créditos ao valor atual (comportamento padrão)
     return User.findByIdAndUpdate(
-      userId,
+      userIdObj,
       { $inc: { credits: credits } },
       { new: true }
     ).exec();
@@ -172,7 +191,17 @@ export async function updateUserCredits(userId: string, credits: number, replace
 // Função de helper para consumir créditos do usuário
 export async function consumeUserCredits(userId: string, amount: number) {
   await connectToDB();
-  const user = await User.findById(userId).exec();
+  
+  // Validar e converter ID
+  let userIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(userId);
+  } catch (error) {
+    console.error(`ID de usuário inválido ao consumir créditos: ${userId}`, error);
+    throw new Error('ID de usuário inválido');
+  }
+  
+  const user = await User.findById(userIdObj).exec();
   
   if (!user) {
     throw new Error('Usuário não encontrado');
@@ -189,9 +218,20 @@ export async function consumeUserCredits(userId: string, amount: number) {
 // Função de helper para atualizar a assinatura do usuário
 export async function updateUserSubscription(userId: string, subscriptionId: string) {
   await connectToDB();
+  
+  // Validar e converter IDs
+  let userIdObj, subscriptionIdObj;
+  try {
+    userIdObj = new mongoose.Types.ObjectId(userId);
+    subscriptionIdObj = new mongoose.Types.ObjectId(subscriptionId);
+  } catch (error) {
+    console.error(`ID inválido: userId=${userId}, subscriptionId=${subscriptionId}`, error);
+    throw new Error('ID inválido');
+  }
+  
   return User.findByIdAndUpdate(
-    userId,
-    { subscriptionId },
+    userIdObj,
+    { subscriptionId: subscriptionIdObj },
     { new: true }
   ).exec();
 }

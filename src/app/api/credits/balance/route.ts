@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { getUserById } from "@/lib/db/models/User";
 import { getUserCreditHistory } from "@/lib/db/models/CreditHistory";
 import { ICreditHistory } from "@/lib/db/models/CreditHistory";
+import mongoose from "mongoose";
 
 // Interface para resposta da API de balanço de créditos
 interface CreditBalanceResponse {
@@ -31,6 +32,15 @@ export async function GET(req: NextRequest) {
     
     const userId = token.sub;
     
+    // Validar formato do ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.warn(`ID de usuário inválido: ${userId}`);
+      return NextResponse.json({
+        success: false,
+        message: "ID de usuário inválido"
+      }, { status: 400 });
+    }
+    
     // Buscar usuário no banco de dados
     const user = await getUserById(userId);
     
@@ -56,12 +66,17 @@ export async function GET(req: NextRequest) {
     
     // Se solicitado, incluir histórico de créditos
     if (includeHistory) {
-      response.history = await getUserCreditHistory(userId, limit, skip);
-      response.pagination = {
-        page,
-        limit,
-        skip
-      };
+      try {
+        response.history = await getUserCreditHistory(userId, limit, skip);
+        response.pagination = {
+          page,
+          limit,
+          skip
+        };
+      } catch (historyError) {
+        console.error("Erro ao obter histórico de créditos:", historyError);
+        // Não falha a requisição, apenas loga o erro e continua sem o histórico
+      }
     }
     
     return NextResponse.json(response);

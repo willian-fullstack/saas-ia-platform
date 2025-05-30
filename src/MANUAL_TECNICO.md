@@ -25,10 +25,11 @@ Estas correções garantem que o sistema de autenticação funcione corretamente
 
 ## Sistema de Landing Pages
 
-O sistema de landing pages permite aos usuários criar e gerenciar landing pages através de dois métodos:
+O sistema de landing pages permite aos usuários criar e gerenciar landing pages através de três métodos:
 
 1. **Geração Automática com IA**: Gera landing pages completas a partir de uma descrição básica usando modelos de IA (OpenAI ou DeepSeek).
 2. **Editor DeepSite**: Interface avançada para edição e refinamento de landing pages com assistência de IA.
+3. **Importação de Copy**: Permite criar landing pages a partir de textos de copy já existentes, com o sistema de IA interpretando e estruturando o conteúdo.
 
 ### Arquitetura do Sistema
 
@@ -40,6 +41,7 @@ O sistema está estruturado da seguinte forma:
 #### APIs
 - `/api/landing-pages/route.ts`: Endpoints para listar e criar landing pages.
 - `/api/landing-pages/[id]/route.ts`: Endpoints para obter, atualizar e excluir landing pages específicas.
+- `/api/landing-pages/import-copy/route.ts`: Endpoint para criar landing pages a partir de textos de copy existentes.
 - `/api/landing-pages/deepsite/`: API para o sistema DeepSite de edição avançada.
   - `/sessions/route.ts`: Gerencia sessões de edição.
   - `/ask-ai/route.ts`: Conecta com a IA para assistência em tempo real.
@@ -49,6 +51,7 @@ O sistema está estruturado da seguinte forma:
 - `/components/landing-pages/`: Componentes específicos para o sistema:
   - `LandingPagesList.tsx`: Exibe lista de landing pages e sessões de edição.
   - `LandingPageGenerator.tsx`: Interface para geração de novas landing pages com IA.
+  - `CopyImporter.tsx`: Interface para importação de textos de copy e criação de landing pages.
   - `DeepSiteEditor.tsx`: Editor avançado com assistência de IA em tempo real.
 
 ### Funcionalidades Principais
@@ -81,7 +84,7 @@ O DeepSite é um sistema avançado para edição de landing pages com assistênc
 
 ### Interface do Usuário
 
-O sistema de landing pages oferece uma interface intuitiva com três áreas principais:
+O sistema de landing pages oferece uma interface intuitiva com quatro áreas principais:
 
 1. **Lista de Landing Pages**: Exibe todas as landing pages criadas e sessões de edição ativas.
    - Permite visualizar, editar ou excluir landing pages
@@ -93,7 +96,13 @@ O sistema de landing pages oferece uma interface intuitiva com três áreas prin
    - Indicador de progresso durante a geração
    - Opções de personalização de estilo e conteúdo
 
-3. **Editor DeepSite**: Ambiente avançado de edição que inclui:
+3. **Importador de Copy**: Interface para criar landing pages a partir de textos existentes:
+   - Campo de texto para colar o conteúdo da copy
+   - Upload de imagens para complementar o conteúdo
+   - Seleção de estilo visual
+   - A IA analisa o texto, extrai elementos-chave e estrutura a landing page automaticamente
+
+4. **Editor DeepSite**: Ambiente avançado de edição que inclui:
    - Editor de código HTML com syntax highlighting
    - Visualizador em tempo real para ver as mudanças
    - Assistente de IA integrado para solicitar ajuda
@@ -137,6 +146,19 @@ prompt: "Adicione uma seção de depoimentos após a seção de benefícios"
 html: "[HTML atual da landing page]"
 sessionId: "session-uuid-123"
 image: [arquivo de imagem - opcional]
+```
+
+#### Importação de Copy para Landing Page
+```http
+POST /api/landing-pages/import-copy
+Content-Type: application/json
+
+{
+  "title": "Página de Vendas do Curso X",
+  "copyText": "Todo o texto da copy/texto de venda...",
+  "style": "minimalista",
+  "images": ["data:image/png;base64,...", "data:image/jpeg;base64,..."]
+}
 ```
 
 ### Configuração
@@ -211,4 +233,23 @@ Se mesmo assim o problema persistir:
 
 1. Verifique os logs do console do navegador para identificar erros específicos
 2. Tente recarregar a página ou criar uma nova sessão DeepSite
-3. Verifique se a landing page original possui conteúdo HTML válido 
+3. Verifique se a landing page original possui conteúdo HTML válido
+
+### DeepSite Editor
+
+O DeepSite Editor permite editar landing pages com a assistência de IA. A interface divide-se em área de código, visualização e comunicação com a IA.
+
+#### Limitações e Tratamento de HTML Grande
+
+O sistema implementa medidas para lidar com limitações de tokens da API de IA:
+
+- **Truncamento Inteligente**: Quando o HTML é muito grande (>35.000 caracteres), o sistema extrai automaticamente apenas as partes mais relevantes, como o conteúdo do `<body>`.
+- **Aviso ao Usuário**: Um aviso é exibido quando o HTML é grande demais, informando que a IA analisará apenas parte do código.
+- **Redução de Tokens**: O sistema ajusta os parâmetros de requisição para economizar tokens, limitando `max_tokens` a 4.000 para a resposta.
+- **Processamento Parcial**: A IA é instruída a trabalhar com o trecho de HTML fornecido, entendendo que suas sugestões podem precisar ser adaptadas ao código completo.
+
+Esta abordagem permite contornar o limite de 65.536 tokens da API DeepSeek, garantindo que o sistema funcione mesmo com landing pages maiores e mais complexas.
+
+### Solução de Problemas
+
+// ... existing code ... 
