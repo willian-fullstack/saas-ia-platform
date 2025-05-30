@@ -70,30 +70,32 @@ export default function DeepSiteEditor({
   useEffect(() => {
     if (sessionData.html && activeTab === "preview" && previewRef.current) {
       try {
+        // Limpar qualquer conteúdo anterior
+        previewRef.current.innerHTML = '';
+        
         // Criar um iframe para isolar completamente o conteúdo
         const iframe = document.createElement('iframe');
         iframe.style.width = '100%';
-        iframe.style.height = '100%';
+        iframe.style.height = '600px'; // Altura fixa para garantir visualização
         iframe.style.border = 'none';
         
         // Configurar o sandbox (forma segura)
         iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms');
         
-        // Limpar conteúdo anterior e adicionar ao DOM
-        previewRef.current.innerHTML = '';
+        // Adicionar o iframe ao DOM
         previewRef.current.appendChild(iframe);
         
-        // Escrever o conteúdo no iframe após ele estar pronto
-        iframe.onload = () => {
+        // Definir o conteúdo do iframe diretamente
+        setTimeout(() => {
           if (iframe.contentDocument) {
             iframe.contentDocument.open();
             iframe.contentDocument.write(sessionData.html);
             iframe.contentDocument.close();
+            console.log('HTML renderizado no iframe');
+          } else {
+            console.error('Não foi possível acessar o documento do iframe');
           }
-        };
-        
-        // Iniciar carregamento do iframe
-        iframe.srcdoc = '<html><head></head><body></body></html>';
+        }, 100);
       } catch (error) {
         console.error("Erro ao renderizar HTML:", error);
         
@@ -323,27 +325,66 @@ export default function DeepSiteEditor({
             });
           }
           
+          console.log("Processando resposta completa da IA:", responseText);
+          
           // Processar código HTML se houver
           const htmlPattern = /<<<<<<< SEARCH([\s\S]*?)=======([\s\S]*?)>>>>>>> REPLACE/g;
           let newHtml = sessionData.html;
           let match;
+          let foundReplacements = false;
           
           while ((match = htmlPattern.exec(responseText)) !== null) {
+            foundReplacements = true;
             const searchBlock = match[1].trim();
             const replaceBlock = match[2].trim();
             
-            // Substituir o código antigo pelo novo
-            newHtml = newHtml.replace(searchBlock, replaceBlock);
+            console.log("Encontrado padrão de substituição:");
+            console.log("- Buscar:", searchBlock.substring(0, 100) + (searchBlock.length > 100 ? "..." : ""));
+            console.log("- Substituir:", replaceBlock.substring(0, 100) + (replaceBlock.length > 100 ? "..." : ""));
+            
+            try {
+              // Verificar se o bloco de busca existe no HTML
+              if (newHtml.includes(searchBlock)) {
+                // Substituir o código antigo pelo novo
+                newHtml = newHtml.replace(searchBlock, replaceBlock);
+                console.log("Substituição realizada com sucesso");
+              } else {
+                console.warn("Bloco de busca não encontrado no HTML. Tentando substring parcial...");
+                
+                // Tentar encontrar parte do texto de busca (pelo menos 30 caracteres)
+                if (searchBlock.length > 30) {
+                  const partialSearch = searchBlock.substring(0, 30);
+                  if (newHtml.includes(partialSearch)) {
+                    // Encontrar o índice e tentar substituir uma parte maior
+                    const startIndex = newHtml.indexOf(partialSearch);
+                    const endIndex = startIndex + searchBlock.length;
+                    
+                    // Verificar se temos espaço suficiente
+                    if (endIndex <= newHtml.length) {
+                      const actualSearchBlock = newHtml.substring(startIndex, endIndex);
+                      newHtml = newHtml.replace(actualSearchBlock, replaceBlock);
+                      console.log("Substituição parcial realizada");
+                    }
+                  }
+                }
+              }
+            } catch (replaceError) {
+              console.error("Erro ao substituir HTML:", replaceError);
+            }
           }
           
           // Atualizar HTML se houve mudanças
-          if (newHtml !== sessionData.html) {
-            setSessionData(prev => ({
-              ...prev,
-              html: newHtml
-            }));
-            
-            toast.info("O código HTML foi atualizado com as sugestões da IA.");
+          if (foundReplacements) {
+            if (newHtml !== sessionData.html) {
+              setSessionData(prev => ({
+                ...prev,
+                html: newHtml
+              }));
+              
+              toast.success("O código HTML foi atualizado com as sugestões da IA!");
+            } else {
+              toast.info("A IA sugeriu alterações, mas não foi possível aplicá-las automaticamente. Verifique a resposta e aplique manualmente se necessário.");
+            }
           }
         }
       } else {

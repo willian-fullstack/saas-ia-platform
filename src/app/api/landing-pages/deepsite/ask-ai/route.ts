@@ -323,6 +323,22 @@ Por favor, faça as modificações necessárias e retorne os blocos de diferenç
                       // Enviar o conteúdo para o cliente
                       controller.enqueue(new TextEncoder().encode(content));
                       assistantResponse += content;
+                      
+                      // Procurar por padrões de blocos de substituição HTML no conteúdo acumulado até agora
+                      const htmlPattern = /<<<<<<< SEARCH([\s\S]*?)=======([\s\S]*?)>>>>>>> REPLACE/g;
+                      let match;
+                      let hasMatches = false;
+                      
+                      while ((match = htmlPattern.exec(assistantResponse)) !== null) {
+                        hasMatches = true;
+                        console.log("[DeepSite] Encontrado padrão de substituição HTML!");
+                        console.log(`[DeepSite] Buscar: ${match[1].substring(0, 100)}...`);
+                        console.log(`[DeepSite] Substituir: ${match[2].substring(0, 100)}...`);
+                      }
+                      
+                      if (hasMatches) {
+                        console.log("[DeepSite] Padrões de substituição encontrados na resposta");
+                      }
                     }
                   }
                 } catch (error) {
