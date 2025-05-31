@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
@@ -26,11 +26,32 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
   const [style, setStyle] = useState("minimalista");
   
   // Estado para imagens
-  const [images, setImages] = useState<{file: File, preview: string}[]>([]);
+  const [images, setImages] = useState<{
+    id?: string;
+    file?: File;
+    preview: string;
+    url?: string;
+    uploading?: boolean;
+    error?: string;
+  }[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   
+  // Estado para imagens existentes
+  const [userImages, setUserImages] = useState<{
+    id: string;
+    url: string;
+    filename: string;
+    originalname: string;
+  }[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+  
+  // Carregar imagens do usuário
+  useEffect(() => {
+    fetchUserImages();
+  }, []);
+  
   // Animação de pontos de carregamento
-  React.useEffect(() => {
+  useEffect(() => {
     if (loading) {
       const messages = [
         "Analisando o texto...",
@@ -66,17 +87,74 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
   }, [loading]);
   
   // Limpar as URLs das imagens ao desmontar o componente
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       // Revogar as URLs de objeto criadas para as previews
-      images.forEach(img => URL.revokeObjectURL(img.preview));
+      images.forEach(img => {
+        if (img.preview && !img.url) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
     };
   }, [images]);
   
+  // Buscar imagens do usuário
+  const fetchUserImages = async () => {
+    try {
+      setLoadingImages(true);
+      const response = await fetch('/api/images/list');
+      
+      if (!response.ok) {
+        throw new Error('Erro ao buscar imagens');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setUserImages(data.data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar imagens do usuário:', error);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
+  
+  // Upload de uma imagem
+  const uploadImage = async (file: File): Promise<{ id: string, url: string } | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/images/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao fazer upload da imagem');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        return {
+          id: data.data.id,
+          url: data.data.url
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      throw error;
+    }
+  };
+  
   // Upload de imagens
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newImages: {file: File, preview: string}[] = [];
+      const newImages: typeof images = [];
       
       Array.from(e.target.files).forEach(file => {
         // Verificar se é uma imagem
@@ -93,18 +171,71 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
         
         // Criar URL de preview
         const preview = URL.createObjectURL(file);
-        newImages.push({ file, preview });
+        newImages.push({ 
+          file, 
+          preview,
+          uploading: true 
+        });
       });
       
       // Adicionar novas imagens (limitando a 5 no total)
       if (images.length + newImages.length > 5) {
         toast.error("Limite de 5 imagens excedido");
+        // Adicionar apenas até o limite
         newImages.slice(0, 5 - images.length).forEach(img => {
           setImages(prev => [...prev, img]);
         });
       } else {
         setImages(prev => [...prev, ...newImages]);
       }
+      
+      // Fazer upload das novas imagens
+      const updatedImages = [...images, ...newImages];
+      
+      // Upload de cada imagem em paralelo
+      const uploadPromises = newImages.map(async (img, index) => {
+        const realIndex = images.length + index;
+        
+        if (!img.file) return;
+        
+        try {
+          const result = await uploadImage(img.file);
+          
+          if (result) {
+            // Atualizar o estado com o resultado do upload
+            setImages(current => 
+              current.map((item, i) => 
+                i === realIndex ? { 
+                  ...item, 
+                  id: result.id,
+                  url: result.url,
+                  uploading: false 
+                } : item
+              )
+            );
+          } else {
+            throw new Error('Falha no upload da imagem');
+          }
+        } catch (error) {
+          console.error(`Erro ao fazer upload da imagem ${realIndex}:`, error);
+          
+          // Atualizar estado com erro
+          setImages(current => 
+            current.map((item, i) => 
+              i === realIndex ? { 
+                ...item, 
+                uploading: false,
+                error: 'Erro no upload'
+              } : item
+            )
+          );
+          
+          toast.error(`Erro ao fazer upload da imagem ${img.file.name}`);
+        }
+      });
+      
+      // Aguardar todos os uploads
+      await Promise.allSettled(uploadPromises);
     }
     
     // Limpar o input file
@@ -113,10 +244,29 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
     }
   };
   
+  // Selecionar imagem existente
+  const selectExistingImage = (image: typeof userImages[0]) => {
+    if (images.length >= 5) {
+      toast.error("Limite de 5 imagens excedido");
+      return;
+    }
+    
+    // Adicionar imagem existente
+    setImages(prev => [...prev, {
+      id: image.id,
+      url: image.url,
+      preview: image.url
+    }]);
+  };
+  
   // Remover uma imagem 
   const removeImage = (index: number) => {
-    // Revogar a URL do objeto para liberar memória
-    URL.revokeObjectURL(images[index].preview);
+    const img = images[index];
+    
+    // Revogar a URL do objeto para liberar memória se for preview local
+    if (img.preview && !img.url) {
+      URL.revokeObjectURL(img.preview);
+    }
     
     // Remover a imagem do array
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -139,29 +289,26 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
       return;
     }
     
+    // Verificar se há uploads pendentes
+    const pendingUploads = images.some(img => img.uploading);
+    if (pendingUploads) {
+      toast.error("Aguarde o upload de todas as imagens antes de prosseguir");
+      return;
+    }
+    
+    // Verificar se há erros de upload
+    const failedUploads = images.some(img => img.error);
+    if (failedUploads) {
+      toast.error("Remova as imagens com erro antes de prosseguir");
+      return;
+    }
+    
     setLoading(true);
     setLoadingMessage("Iniciando criação da landing page...");
     
     try {
-      // Converter imagens para base64
-      const imageUrls: string[] = [];
-      
-      // Se tiver imagens, converter para base64 em paralelo
-      if (images.length > 0) {
-        setLoadingMessage("Processando imagens...");
-        const imagePromises = images.map(img => 
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve(reader.result as string);
-            };
-            reader.readAsDataURL(img.file);
-          })
-        );
-        
-        const imageResults = await Promise.all(imagePromises);
-        imageUrls.push(...imageResults);
-      }
+      // Obter URLs das imagens
+      const imageUrls = images.map(img => img.url || '').filter(url => url);
       
       setLoadingMessage("Enviando dados para IA...");
 
@@ -195,8 +342,7 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
         setTitle("");
         setStyle("minimalista");
         
-        // Limpar imagens
-        images.forEach(img => URL.revokeObjectURL(img.preview));
+        // Limpar imagens (sem necessidade de revogar URLs pois são URLs de servidor)
         setImages([]);
         
         // Notificar sucesso
@@ -278,7 +424,7 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
                 : `Adicionar mais imagens (${images.length}/5)`}
             </Button>
             
-            {/* Preview das imagens */}
+            {/* Preview das imagens selecionadas */}
             {images.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-2">
                 {images.map((img, index) => (
@@ -286,8 +432,18 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
                     <img 
                       src={img.preview} 
                       alt={`Imagem ${index + 1}`}
-                      className="h-20 w-full object-cover rounded border"
+                      className={`h-20 w-full object-cover rounded border ${img.error ? 'border-red-500' : ''}`}
                     />
+                    {img.uploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
+                        <Loader2 className="h-6 w-6 animate-spin text-white" />
+                      </div>
+                    )}
+                    {img.error && (
+                      <div className="absolute bottom-0 inset-x-0 bg-red-500 text-white text-xs p-1 text-center">
+                        Erro
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
@@ -298,6 +454,45 @@ export default function CopyImporter({ onSuccess }: CopyImporterProps) {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {/* Imagens existentes do usuário */}
+            {userImages.length > 0 && (
+              <div className="mt-4">
+                <Label className="mb-2 block">
+                  Suas Imagens Anteriores
+                </Label>
+                <div className="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border rounded">
+                  {loadingImages ? (
+                    <div className="col-span-4 flex justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : userImages.length === 0 ? (
+                    <p className="col-span-4 text-sm text-muted-foreground text-center py-4">
+                      Nenhuma imagem encontrada
+                    </p>
+                  ) : (
+                    userImages.map(img => (
+                      <div 
+                        key={img.id} 
+                        className="relative cursor-pointer hover:opacity-80 transition-opacity border rounded overflow-hidden"
+                        onClick={() => selectExistingImage(img)}
+                      >
+                        <img 
+                          src={img.url} 
+                          alt={img.originalname}
+                          className="h-16 w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/40 transition-opacity">
+                          <Button size="sm" variant="secondary" className="h-6">
+                            Usar
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>

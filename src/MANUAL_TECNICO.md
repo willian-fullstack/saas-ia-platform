@@ -67,11 +67,33 @@ O sistema suporta a geração de landing pages completas a partir de prompts de 
 
 A geração pode utilizar tanto a API da OpenAI quanto da DeepSeek, dependendo da configuração do sistema.
 
-#### Armazenamento de Imagens
-O sistema permite o upload de imagens que são:
-- Armazenadas no diretório `/public/uploads/`
-- Referenciadas nas landing pages com caminhos relativos
-- Podem ser carregadas através da interface do LandingPageGenerator
+#### Sistema de Armazenamento de Imagens
+O sistema de landing pages agora inclui um gerenciamento eficiente de imagens para evitar problemas com strings base64 muito grandes:
+
+#### Modelo de Dados para Imagens
+- `Image.ts`: Define o esquema e funções para interagir com imagens no MongoDB
+  - Campos: filename, originalname, mimetype, path, size, userId
+  - Funções: createImage, getImagesByUserId, getImageById, deleteImage
+
+#### Endpoints da API para Imagens
+- `/api/images/upload`: Permite o upload de imagens (limite 5MB por imagem)
+  - Salva os arquivos no sistema de arquivos em `/public/uploads/`
+  - Armazena metadados no MongoDB
+  - Retorna ID e URL pública da imagem
+- `/api/images/list`: Lista todas as imagens do usuário atual
+
+#### Integração com o Importador de Copy
+- O componente `CopyImporter` foi atualizado para:
+  - Fazer upload de imagens para o servidor em vez de convertê-las para base64
+  - Exibir o progresso de upload para cada imagem
+  - Permitir selecionar imagens previamente enviadas
+  - Mostrar erros de upload quando ocorrem
+
+#### Vantagens do Novo Sistema
+- Reduz significativamente o tamanho das requisições para a API de IA
+- Evita o erro de limite de tokens devido a imagens base64 gigantes
+- Permite reutilizar imagens em diferentes landing pages
+- Melhora o desempenho da aplicação
 
 #### Sistema DeepSite
 O DeepSite é um sistema avançado para edição de landing pages com assistência de IA em tempo real:
@@ -160,96 +182,3 @@ Content-Type: application/json
   "images": ["data:image/png;base64,...", "data:image/jpeg;base64,..."]
 }
 ```
-
-### Configuração
-
-O sistema requer as seguintes variáveis de ambiente:
-- `OPENAI_API_KEY` ou `DEEPSEEK_API_KEY`: Chave para a API de IA
-- `OPENAI_MODEL_ID` ou `DEEPSEEK_MODEL_ID` (opcional): Para especificar o modelo a ser usado
-
-### Considerações de Segurança
-
-- Todo o HTML gerado ou editado é sanitizado usando a biblioteca `sanitize-html`.
-- As sessões de edição são vinculadas aos usuários e têm verificações de permissão.
-- Em ambiente de desenvolvimento, algumas restrições são relaxadas para facilitar os testes.
-
-## Solução de Problemas
-
-### Sistema DeepSite
-
-O sistema DeepSite utiliza um mecanismo de comunicação baseado em FormData para transmitir dados entre o frontend e a API. Os principais pontos a observar são:
-
-1. **Parâmetros corretos**: O frontend envia parâmetros via FormData com os seguintes nomes:
-   - `message`: O texto da pergunta ou instrução do usuário
-   - `html`: O código HTML atual da landing page
-   - `sessionId`: O ID da sessão atual do DeepSite
-   - `image` (opcional): Uma imagem para ser incorporada na landing page
-
-2. **Streaming de Resposta**: A API retorna um stream de texto que é processado incrementalmente pelo frontend. Isso permite uma experiência mais fluida para o usuário.
-
-3. **Tratamento de Erros**: Tanto o frontend quanto o backend possuem mecanismos robustos de tratamento de erros para garantir que falhas não interrompam a experiência do usuário.
-
-Se ocorrerem problemas de comunicação entre o frontend e a API, verifique:
-- Se os nomes dos parâmetros no FormData estão corretos
-- Se a API está configurada para receber os mesmos nomes de parâmetros
-- Se as chaves de API de IA (OpenAI ou DeepSeek) estão configuradas no arquivo .env
-
-### Depuração do Sistema
-
-Para facilitar a depuração de problemas com o sistema DeepSite, foram implementados logs detalhados em pontos críticos:
-
-1. **No frontend (DeepSiteEditor.tsx)**:
-   - Log dos dados sendo enviados na requisição (message, sessionId e status do HTML)
-   - Validação prévia para garantir que o HTML não esteja vazio
-   - Exibição detalhada de erros retornados pela API
-
-2. **No backend (ask-ai/route.ts)**:
-   - Log das chaves recebidas no FormData
-   - Log da existência de cada parâmetro esperado
-   - Suporte flexível para parâmetros (aceita tanto 'message' quanto 'prompt')
-   - Tratamento detalhado de erros com informações específicas
-
-Os logs de depuração podem ser visualizados no console do navegador (frontend) e no terminal do servidor (backend), ajudando a identificar onde exatamente os problemas estão ocorrendo.
-
-### Solução de Problemas Comuns
-
-#### HTML Vazio no Editor DeepSite
-
-Um problema comum que pode ocorrer é quando o editor DeepSite mostra um conteúdo HTML vazio, impossibilitando a edição da landing page. Esse problema pode ocorrer pelas seguintes razões:
-
-1. **Inconsistência nos nomes de campos**: O sistema utiliza diferentes nomes de campos para o conteúdo HTML em diferentes partes da aplicação:
-   - `html`: Usado no modelo de dados da landing page
-   - `content`: Usado internamente nas sessões DeepSite
-
-   O sistema foi atualizado para aceitar ambos os nomes de campos, garantindo compatibilidade entre as diferentes partes.
-
-2. **Validação de conteúdo**: Foram adicionadas verificações para garantir que o conteúdo HTML não esteja vazio antes de enviar requisições à API. Isso evita problemas de edição e feedback claro ao usuário.
-
-3. **Atualização automática de sessões**: As sessões DeepSite agora atualizam automaticamente o conteúdo HTML quando detectam alterações, garantindo que sempre contenham a versão mais recente do código.
-
-#### Solução:
-
-Se mesmo assim o problema persistir:
-
-1. Verifique os logs do console do navegador para identificar erros específicos
-2. Tente recarregar a página ou criar uma nova sessão DeepSite
-3. Verifique se a landing page original possui conteúdo HTML válido
-
-### DeepSite Editor
-
-O DeepSite Editor permite editar landing pages com a assistência de IA. A interface divide-se em área de código, visualização e comunicação com a IA.
-
-#### Limitações e Tratamento de HTML Grande
-
-O sistema implementa medidas para lidar com limitações de tokens da API de IA:
-
-- **Truncamento Inteligente**: Quando o HTML é muito grande (>35.000 caracteres), o sistema extrai automaticamente apenas as partes mais relevantes, como o conteúdo do `<body>`.
-- **Aviso ao Usuário**: Um aviso é exibido quando o HTML é grande demais, informando que a IA analisará apenas parte do código.
-- **Redução de Tokens**: O sistema ajusta os parâmetros de requisição para economizar tokens, limitando `max_tokens` a 4.000 para a resposta.
-- **Processamento Parcial**: A IA é instruída a trabalhar com o trecho de HTML fornecido, entendendo que suas sugestões podem precisar ser adaptadas ao código completo.
-
-Esta abordagem permite contornar o limite de 65.536 tokens da API DeepSeek, garantindo que o sistema funcione mesmo com landing pages maiores e mais complexas.
-
-### Solução de Problemas
-
-// ... existing code ... 
