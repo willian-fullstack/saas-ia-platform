@@ -89,11 +89,53 @@ O sistema de landing pages agora inclui um gerenciamento eficiente de imagens pa
   - Permitir selecionar imagens previamente enviadas
   - Mostrar erros de upload quando ocorrem
 
+#### Gerenciamento de Textos Grandes
+O sistema implementa um mecanismo de truncamento radical para lidar com textos de copy muito extensos:
+
+- **Estratégia Minimalista**: Ao invés de um prompt extenso e detalhado, usa um formato extremamente compacto
+- **Estimativa Conservadora de Tokens**: Calcula o número aproximado de tokens em um texto (1 token ≈ 2 caracteres)
+- **Truncamento Ultra-Agressivo**: 
+  - Limita o texto da copy a 10.000 caracteres no máximo
+  - Preserva apenas o início do texto, que geralmente contém as informações mais importantes
+  - Simplifica drasticamente as instruções para a IA
+- **Truncamento de Emergência**: Durante a execução da requisição, aplica truncamento adicional se necessário
+- **Monitoramento em Tempo Real**: Acompanha o tamanho da requisição e executa ajustes dinâmicos
+- **Prompts Reduzidos**: Reduz todos os prompts secundários (descrição, tags) para o mínimo essencial
+- **Logging Detalhado**: Registra informações sobre o processo de truncamento para facilitar a depuração
+
+Esta abordagem radical garante que as requisições à API de IA fiquem abaixo do limite máximo de tokens, mesmo com textos extremamente longos, priorizando a funcionalidade sobre a completude do conteúdo quando necessário.
+
 #### Vantagens do Novo Sistema
 - Reduz significativamente o tamanho das requisições para a API de IA
 - Evita o erro de limite de tokens devido a imagens base64 gigantes
 - Permite reutilizar imagens em diferentes landing pages
 - Melhora o desempenho da aplicação
+- Processa textos de copy de qualquer tamanho sem erros de limite de contexto
+
+#### Processamento e Limpeza de HTML
+O sistema implementa um mecanismo robusto para garantir que apenas HTML válido seja armazenado:
+
+- **Detecção Inteligente**: Identifica e remove explicações e metadados adicionados pela IA
+- **Remoção de Marcações Markdown**: Elimina automaticamente códigos de formatação como ```html ou ``` que podem estar presentes na resposta
+- **Extração Precisa**: Identifica o início (<!DOCTYPE html>) e o fim (</html>) do código HTML válido
+- **Instruções Específicas**: O prompt fornece diretrizes claras para evitar a inclusão de explicações no código
+- **Formatação de Imagens**: Pré-formata as tags de imagem no prompt para garantir o uso correto das URLs
+- **Validação de Saída**: Garante que o código HTML resultante seja válido e esteja pronto para uso
+
+Esse processo de limpeza assegura que a landing page resultante contenha apenas o código HTML necessário, sem textos explicativos ou comentários que prejudiquem a visualização ou o funcionamento da página.
+
+#### Sistema de Persistência de Edições
+O sistema implementa um mecanismo de persistência de edições que garante que as alterações feitas nas landing pages sejam corretamente salvas e mantidas:
+
+- **Salvamento em Duas Camadas**: As edições são salvas tanto na sessão temporária quanto na landing page permanente
+- **Logs Detalhados**: Registros extensivos do processo de atualização para facilitar a depuração
+- **Validação Rigorosa**: Verificações em cada etapa do processo de salvamento para garantir integridade
+- **Confirmação Visual**: Notificações claras ao usuário sobre o status do salvamento
+- **Preservação de Conteúdo**: Garantia que o HTML editado seja preservado entre visualizações da página
+- **Verificação de Permissões**: Confirmação que apenas usuários autorizados possam editar as landing pages
+- **Sanitização de HTML**: Limpeza do código para remover scripts maliciosos sem afetar a funcionalidade
+
+Esta implementação garante que os usuários não percam seu trabalho quando editam landing pages, mesmo após navegar para fora e retornar à página de edição.
 
 #### Sistema DeepSite
 O DeepSite é um sistema avançado para edição de landing pages com assistência de IA em tempo real:
@@ -179,6 +221,6 @@ Content-Type: application/json
   "title": "Página de Vendas do Curso X",
   "copyText": "Todo o texto da copy/texto de venda...",
   "style": "minimalista",
-  "images": ["data:image/png;base64,...", "data:image/jpeg;base64,..."]
+  "images": ["/uploads/imagem1.jpg", "/uploads/imagem2.jpg"]
 }
 ```

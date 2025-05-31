@@ -73,13 +73,28 @@ export function getSessionContent(sessionId: string): string | null {
 
 // Atualizar conteúdo de uma sessão
 export function updateSessionContent(sessionId: string, content: string): boolean {
-  if (global.deepsiteSessions?.[sessionId]) {
-    global.deepsiteSessions[sessionId].content = content;
-    global.deepsiteSessions[sessionId].html = content; // Atualizar ambos os campos para compatibilidade
-    global.deepsiteSessions[sessionId].lastActivity = new Date();
-    return true;
+  if (!global.deepsiteSessions?.[sessionId]) {
+    console.error(`Sessão não encontrada: ${sessionId}`);
+    return false;
   }
-  return false;
+  
+  if (!content || content.trim() === '') {
+    console.warn(`Tentativa de atualizar sessão ${sessionId} com conteúdo vazio`);
+  } else {
+    console.log(`Atualizando sessão ${sessionId} com conteúdo de ${content.length} caracteres`);
+  }
+  
+  // Armazenar o conteúdo em ambos os campos para garantir compatibilidade
+  global.deepsiteSessions[sessionId].content = content;
+  global.deepsiteSessions[sessionId].html = content; 
+  global.deepsiteSessions[sessionId].lastActivity = new Date();
+  
+  // Se a sessão tem uma landing page associada, registrar para debug
+  if (global.deepsiteSessions[sessionId].landingPageId) {
+    console.log(`Sessão ${sessionId} está associada à landing page ${global.deepsiteSessions[sessionId].landingPageId}`);
+  }
+  
+  return true;
 }
 
 // Adicionar mensagem a uma sessão

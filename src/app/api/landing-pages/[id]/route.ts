@@ -113,9 +113,11 @@ export async function PUT(
     }
     
     const id = params.id;
+    console.log(`Iniciando atualização da landing page ID: ${id}`);
     
     // Validar ID formato MongoDB
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error(`ID inválido: ${id}`);
       return NextResponse.json({
         success: false,
         message: "ID de landing page inválido"
@@ -124,9 +126,10 @@ export async function PUT(
     
     // Obter dados do corpo da requisição
     const { title, description, html, tags } = await request.json();
+    console.log(`Recebidos dados para atualização: title=${title ? 'presente' : 'ausente'}, description=${description ? 'presente' : 'ausente'}, html=${html ? 'presente' : 'ausente'}, tags=${tags ? 'presentes' : 'ausentes'}`);
     
     // Sanitizar o HTML para segurança
-    const sanitizedHtml = sanitizeHtml(html, sanitizeOptions);
+    const sanitizedHtml = html ? sanitizeHtml(html, sanitizeOptions) : undefined;
     
     // Preparar dados para atualização
     const updateData: any = {};
@@ -136,9 +139,12 @@ export async function PUT(
     if (html !== undefined) updateData.html = sanitizedHtml;
     if (tags !== undefined) updateData.tags = tags;
     
+    console.log(`Campos a serem atualizados: ${Object.keys(updateData).join(', ')}`);
+    
     // Verificar se a landing page existe e se o usuário tem permissão
     const existingLandingPage = await getLandingPageById(id);
     if (!existingLandingPage) {
+      console.error(`Landing page ID ${id} não encontrada`);
       return NextResponse.json({
         success: false,
         message: "Landing page não encontrada"
@@ -147,6 +153,7 @@ export async function PUT(
     
     // Em ambiente de desenvolvimento, permitir edição de qualquer landing page
     if (!isDev && existingLandingPage.userId !== session?.user?.id) {
+      console.error(`Usuário ${session?.user?.id} não tem permissão para editar landing page ${id} pertencente ao usuário ${existingLandingPage.userId}`);
       return NextResponse.json({
         success: false,
         message: "Você não tem permissão para editar esta landing page"
@@ -154,18 +161,23 @@ export async function PUT(
     }
     
     // Atualizar landing page
+    console.log(`Enviando atualização para o banco de dados...`);
     const updatedLandingPage = await updateLandingPage(id, updateData);
     
     if (!updatedLandingPage) {
+      console.error(`Falha ao atualizar landing page ${id} no banco de dados`);
       return NextResponse.json({
         success: false,
-        message: "Erro ao atualizar landing page"
+        message: "Erro ao atualizar landing page no banco de dados"
       }, { status: 500 });
     }
     
+    console.log(`Landing page ${id} atualizada com sucesso. Título: ${updatedLandingPage.title}`);
+    
     return NextResponse.json({
       success: true,
-      data: updatedLandingPage
+      data: updatedLandingPage,
+      message: "Landing page atualizada com sucesso"
     });
     
   } catch (error) {

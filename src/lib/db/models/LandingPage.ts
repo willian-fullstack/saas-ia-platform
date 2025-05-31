@@ -152,6 +152,12 @@ export async function getLandingPageById(id: string) {
 export async function updateLandingPage(id: string, updateData: Partial<ILandingPage>) {
   try {
     console.log(`Atualizando landing page com ID: ${id}`);
+    console.log('Dados para atualização:', JSON.stringify(updateData, null, 2));
+    
+    if (Object.keys(updateData).length === 0) {
+      console.warn('Tentativa de atualização sem dados. Nenhum campo para atualizar.');
+      return null;
+    }
     
     await connectToDB();
     const LandingPageModel = await getLandingPageModel();
@@ -161,6 +167,17 @@ export async function updateLandingPage(id: string, updateData: Partial<ILanding
       return null;
     }
     
+    // Verificar se a landing page existe antes de atualizar
+    const existingLandingPage = await LandingPageModel.findById(id).exec();
+    
+    if (!existingLandingPage) {
+      console.error(`Landing page com ID ${id} não existe`);
+      return null;
+    }
+    
+    console.log(`Landing page encontrada. Título atual: "${existingLandingPage.title}"`);
+    
+    // Realizar a atualização
     const updatedLandingPage = await LandingPageModel.findByIdAndUpdate(
       id,
       { $set: updateData },
@@ -168,11 +185,23 @@ export async function updateLandingPage(id: string, updateData: Partial<ILanding
     ).exec();
     
     if (!updatedLandingPage) {
-      console.log(`Landing page com ID ${id} não encontrada para atualização`);
+      console.error(`Falha ao atualizar landing page com ID ${id}`);
       return null;
     }
     
-    console.log(`Landing page atualizada com sucesso: ${updatedLandingPage.title}`);
+    // Verificar se o HTML foi atualizado
+    if (updateData.html !== undefined) {
+      const html = updatedLandingPage.html || '';
+      console.log(`HTML atualizado. Tamanho: ${html.length} caracteres`);
+      if (html.length === 0) {
+        console.warn('ALERTA: O HTML atualizado está vazio!');
+      } else {
+        console.log(`Primeiros 100 caracteres do HTML: ${html.substring(0, 100)}...`);
+      }
+    }
+    
+    console.log(`Landing page atualizada com sucesso: "${updatedLandingPage.title}"`);
+    console.log(`Campos atualizados: ${Object.keys(updateData).join(', ')}`);
     
     return updatedLandingPage;
   } catch (error) {

@@ -465,6 +465,8 @@ export default function DeepSiteEditor({
         // Se tem landingPageId, atualizar a landing page
         if (sessionData.landingPageId) {
           try {
+            console.log('Atualizando landing page principal com ID:', sessionData.landingPageId);
+            
             const updateResponse = await fetch(`/api/landing-pages/${sessionData.landingPageId}`, {
               method: 'PUT',
               headers: {
@@ -476,20 +478,32 @@ export default function DeepSiteEditor({
             });
             
             if (!updateResponse.ok) {
-              throw new Error('Erro ao atualizar landing page');
+              const errorData = await updateResponse.json();
+              console.error('Erro na resposta da API:', errorData);
+              throw new Error(errorData.message || 'Erro ao atualizar landing page');
             }
             
             const updateData = await updateResponse.json();
             
             if (updateData.success) {
+              console.log('Landing page atualizada com sucesso:', updateData.data);
               toast.success("Landing page atualizada com sucesso!");
               
+              // Verificar se os dados foram realmente atualizados
+              if (!updateData.data || !updateData.data.html) {
+                console.warn('A resposta da API não contém os dados atualizados da landing page');
+              }
+              
               // Notificar que o salvamento foi concluído
-              onSaveComplete();
+              if (onSaveComplete) {
+                onSaveComplete();
+              }
+            } else {
+              throw new Error(updateData.message || 'Erro desconhecido ao atualizar landing page');
             }
           } catch (updateError) {
             console.error('Erro ao atualizar landing page:', updateError);
-            toast.error("Erro ao atualizar landing page. As alterações foram salvas na sessão.");
+            toast.error(`Erro ao atualizar landing page: ${updateError instanceof Error ? updateError.message : 'Erro desconhecido'}`);
           }
         }
       } else {
