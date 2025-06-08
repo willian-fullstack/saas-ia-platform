@@ -23,6 +23,96 @@ Foram implementadas correções importantes no sistema de autenticação:
 
 Estas correções garantem que o sistema de autenticação funcione corretamente em todos os ambientes, usando sempre dados reais do banco de dados e aplicando as restrições de acesso apropriadas com base no papel real do usuário.
 
+## Sistema de Criativos Visuais
+
+### Geração de Imagens com ChatGPT (Julho 2024)
+
+O sistema de criativos visuais foi atualizado para incluir a geração de imagens usando a API do ChatGPT (DALL-E), oferecendo diferentes proporções e resoluções para atender a diversas necessidades:
+
+#### Formatos Suportados
+- **Quadrado (1:1)**: 1024x1024 - Ideal para ícones, avatares e posts sociais
+- **Paisagem (16:9)**: 1792x1024 - Ótimo para banners e cenas amplas
+- **Retrato (9:16)**: 1024x1792 - Ideal para celular, pôster e retrato
+
+#### Arquitetura do Sistema
+
+##### Modelo de Dados
+- Utiliza o modelo `UserCreation` para armazenar as imagens geradas
+- Integrado ao sistema de créditos para controle de uso
+
+##### API
+- `/api/images/generate/route.ts`: Endpoint para geração de imagens
+  - Aceita parâmetros: prompt, aspectRatio
+  - Consome créditos do usuário
+  - Utiliza a API OpenAI (DALL-E) para geração
+
+##### Interface do Usuário
+- `/dashboard/creative/page.tsx`: Interface para geração de imagens
+  - Seleção de proporção (1:1, 16:9, 9:16)
+  - Campo de prompt para descrição da imagem
+  - Visualização da imagem gerada
+  - Opções para download e cópia da URL
+
+#### Sistema de Créditos
+- Feature ID: `creative-image-generation`
+- Custo padrão: 15 créditos por imagem
+- Configurável via painel administrativo
+
+#### Implementação Técnica
+- Integração com a API OpenAI para geração de imagens
+- Armazenamento de URLs e metadados no banco de dados
+- Sistema de cache para evitar regeneração de imagens idênticas
+- Validação de prompts para evitar conteúdo inadequado
+- Tratamento de erros com mensagens claras ao usuário
+
+#### Uso da API
+
+```http
+POST /api/images/generate
+Content-Type: application/json
+
+{
+  "prompt": "Um gato astronauta explorando o espaço",
+  "aspectRatio": "1:1"
+}
+```
+
+Resposta:
+```json
+{
+  "success": true,
+  "imageUrl": "https://url-da-imagem-gerada.jpg",
+  "creationId": "65f45a3b1c2a3b4c5d6e7f8g",
+  "creditsConsumed": 15,
+  "remainingCredits": 85
+}
+```
+
+Esta implementação permite aos usuários gerar imagens de alta qualidade diretamente na plataforma, com diferentes proporções otimizadas para diversos casos de uso, mantendo o controle de uso através do sistema de créditos.
+
+## Atualização da Identidade Visual
+
+### Implementação de Logos Oficiais (Julho 2024)
+
+A plataforma foi atualizada com a nova identidade visual da marca ExecutaAi:
+
+1. **Substituição de Logos**
+   - Implementados logos oficiais na interface (modo claro e escuro)
+   - Arquivos de imagem: `logo_claro.png` e `logo_escuro.png` localizados em `/public/images/`
+   - Substituição do texto "SAS IA Platform" pelos logos oficiais em todos os cabeçalhos
+
+2. **Componentes Atualizados**
+   - `header.tsx`: Atualizado para exibir o logo correto baseado no tema atual (claro/escuro)
+   - Página inicial (`page.tsx`): Logo principal e título atualizados
+   - Responsividade implementada para diferentes tamanhos de tela
+
+3. **Implementação Técnica**
+   - Uso do componente `Image` do Next.js para carregamento otimizado das imagens
+   - Alternância condicional entre logos usando CSS e o hook `useTheme()` do next-themes
+   - Preservação de animações e efeitos visuais da interface original
+
+Essa atualização mantém toda a funcionalidade original enquanto aplica a nova identidade visual da marca ExecutaAi em toda a plataforma.
+
 ## Sistema de Landing Pages
 
 O sistema de landing pages permite aos usuários criar e gerenciar landing pages através de três métodos:

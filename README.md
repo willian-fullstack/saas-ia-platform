@@ -133,7 +133,22 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - **Novo:** Integração completa com sistema de créditos
 - **Novo:** Respostas mais precisas e personalizadas por área
 
-### 5. Gerenciamento de Criações
+### 5. IA de Criativos Visuais (Implementado)
+- **Novo:** Geração de imagens usando a API do ChatGPT (DALL-E)
+- **Novo:** Suporte a múltiplas proporções e resoluções:
+  - Quadrado (1:1): 1024x1024 - Ideal para ícones, avatares e posts sociais
+  - Paisagem (16:9): 1792x1024 - Ótimo para banners e cenas amplas
+  - Retrato (9:16): 1024x1792 - Ideal para celular, pôster e retrato
+- **Novo:** Configurações avançadas:
+  - Estilos visuais (realista, cartoon, minimalista, 3D, flat design)
+  - Adição de texto na imagem
+  - Modo ruído para otimização de anúncios
+- **Novo:** Interface intuitiva com visualização em tempo real
+- **Novo:** Opções para download e cópia da URL da imagem
+- **Novo:** Integração completa com sistema de créditos
+- **Novo:** Armazenamento automático das criações
+
+### 6. Gerenciamento de Criações
 - Sistema unificado para todas as criações do usuário
 - Organização por tipo de conteúdo
 - Funcionalidades:
@@ -147,7 +162,7 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - **Novo:** Interface aprimorada para visualização de histórico
 - **Novo:** Categorização inteligente de criações
 
-### 6. Sistema de Performance
+### 7. Sistema de Performance
 - Monitoramento de tempo de resposta das APIs
 - Cache inteligente para requisições repetidas
 - Rate limiting para proteção da API
@@ -156,7 +171,7 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - **Novo:** Melhorias significativas na performance de respostas
 - **Novo:** Otimizações para redução de latência em todos os módulos
 
-### 7. Sistema de Assinaturas e Créditos (Completamente Implementado)
+### 8. Sistema de Assinaturas e Créditos (Completamente Implementado)
 - **Novo:** Integração completa com Mercado Pago para processamento de pagamentos recorrentes
 - **Novo:** Interface amigável para seleção e assinatura de planos
 - **Novo:** Checkout seguro com redirecionamento para pagamento
@@ -167,7 +182,7 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - **Novo:** Sistema de notificações para estado da assinatura e saldo de créditos
 - **Novo:** Controle granular de custos de créditos por funcionalidade
 
-### 8. Área Administrativa
+### 9. Área Administrativa
 - **Novo:** Painel completo de administração com acesso restrito
 - **Novo:** Gestão de planos de assinatura (criação, edição, ativação/desativação)
 - **Novo:** Configuração de preços e quantidade de créditos por plano
@@ -175,7 +190,7 @@ npm run setup-admin -- --email=seu_email@exemplo.com
 - **Novo:** Visualização de métricas e estatísticas de uso
 - **Novo:** Interface intuitiva para todas as operações administrativas
 
-### 9. Interface Moderna e Visual (Completamente Implementada)
+### 10. Interface Moderna e Visual (Completamente Implementada)
 - **Novo:** Design futurista com efeitos visuais dinâmicos
 - **Novo:** Partículas interativas no dashboard e páginas principais
 - **Novo:** Cards com efeitos de hover e animações sutis
@@ -489,7 +504,7 @@ sas-ia-platform/
    - Remover código não utilizado e imports desnecessários
 
 2. **Módulos em Desenvolvimento:**
-   - IA de Criativos Visuais
+   - ~~IA de Criativos Visuais~~ ✅ Implementado
    - IA de Vídeos Curtos
    - Transcrição de Áudio
    - Dashboard administrativo com métricas de uso e receita

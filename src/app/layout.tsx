@@ -11,9 +11,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SAS IA Platform",
-  description: "Plataforma All-in-One com IA para Criadores de Conteúdo",
+  title: "ExecutaAi",
+  description: "Plataforma de IA All-in-One para criadores de conteúdo, afiliados, dropshippers e closers",
   viewport: "width=device-width, initial-scale=1",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

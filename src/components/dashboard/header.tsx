@@ -9,11 +9,13 @@ import { UserProfileButton } from "@/components/user-profile-button";
 import { CreditBadge } from "@/components/subscription/CreditBadge";
 import { MobileMenu } from "@/components/dashboard/mobile-menu";
 import { useIsAdmin } from "@/lib/auth";
+import { useTheme } from "next-themes";
 
 export function DashboardHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isAdmin, isLoading } = useIsAdmin();
+  const { theme } = useTheme();
   
   useEffect(() => {
     const handleScroll = () => {
@@ -41,22 +43,39 @@ export function DashboardHeader() {
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="relative flex items-center gap-2 font-semibold group">
-            <div className="relative">
+            <div className="relative md:hidden">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/60 to-primary/30 rounded-full blur-md opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
-              <div className="relative">
+              <div className="relative w-10 h-10 flex items-center justify-center">
                 <Image 
                   src="/logo.svg" 
-                  alt="SAS IA Platform Logo" 
+                  alt="ExecutaAi Logo Icon" 
                   width={36} 
                   height={36} 
-                  className="dark:invert group-hover:scale-110 transition-transform duration-300"
+                  className="group-hover:scale-110 transition-transform duration-300"
                   priority
                 />
               </div>
             </div>
-            <span className="hidden md:inline text-lg text-foreground/90 group-hover:text-primary transition-colors duration-300 font-bold">
-              SAS IA <span className="text-primary/90">Platform</span>
-            </span>
+            {/* Logo completo responsivo */}
+            <div className="hidden md:block relative">
+              {/* Logos oficiais da ExecutaAi */}
+              <Image 
+                src="/img/logo_claro.png" 
+                alt="ExecutaAi" 
+                width={180}
+                height={50}
+                className="block dark:hidden" 
+                priority
+              />
+              <Image 
+                src="/img/logo_escuro.png" 
+                alt="ExecutaAi" 
+                width={180}
+                height={50}
+                className="hidden dark:block" 
+                priority
+              />
+            </div>
           </Link>
 
           {/* Mobile menu button */}

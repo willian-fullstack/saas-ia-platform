@@ -13,7 +13,8 @@ import {
   Trash, 
   Download, 
   Eye,
-  Loader2
+  Loader2,
+  ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -25,6 +26,7 @@ import {
 import { useRequireAuth } from "@/lib/auth";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import Image from "next/image";
 
 // Interface para o tipo de criação
 interface Creation {
@@ -116,7 +118,20 @@ export default function MyCreationsPage() {
 
   // Download do conteúdo da criação (HTML para landing page, texto para copywriting)
   const handleDownload = (creation: Creation) => {
-    const content = creation.content.result;
+    // Para imagens, baixar a imagem diretamente
+    if (creation.type === 'creative' && creation.content?.imageUrl) {
+      const link = document.createElement("a");
+      link.href = creation.content.imageUrl as string;
+      link.download = `${creation.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Imagem baixada com sucesso');
+      return;
+    }
+    
+    // Para outros tipos de conteúdo
+    const content = creation.content?.result || '';
     const fileName = `${creation.title.toLowerCase().replace(/\s+/g, '-')}.${creation.type === 'landing-page' ? 'html' : 'txt'}`;
     const contentType = creation.type === 'landing-page' ? 'text/html' : 'text/plain';
     
@@ -160,6 +175,8 @@ export default function MyCreationsPage() {
         return <Layout className="h-5 w-5 text-green-500" />;
       case 'offer':
         return <MessageSquare className="h-5 w-5 text-purple-500" />;
+      case 'creative':
+        return <ImageIcon className="h-5 w-5 text-yellow-500" />;
       default:
         return <Edit className="h-5 w-5 text-gray-500" />;
     }
@@ -220,6 +237,7 @@ export default function MyCreationsPage() {
                 <TabsTrigger value="copywriting">Copywriting</TabsTrigger>
                 <TabsTrigger value="landing-page">Landing Pages</TabsTrigger>
                 <TabsTrigger value="offer">Ofertas</TabsTrigger>
+                <TabsTrigger value="creative">Imagens</TabsTrigger>
               </TabsList>
             </div>
             
@@ -236,6 +254,10 @@ export default function MyCreationsPage() {
             </TabsContent>
             
             <TabsContent value="offer" className="mt-6">
+              {renderCreationsList(filteredCreations)}
+            </TabsContent>
+            
+            <TabsContent value="creative" className="mt-6">
               {renderCreationsList(filteredCreations)}
             </TabsContent>
           </Tabs>
@@ -284,14 +306,16 @@ export default function MyCreationsPage() {
               </div>
               
               <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCopy(creation.content.result)}
-                  title="Copiar conteúdo"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+                {(creation.type !== 'creative' || (creation.type === 'creative' && creation.content?.result)) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(creation.content?.result || '')}
+                    title="Copiar conteúdo"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                )}
                 
                 <Button
                   variant="ghost"
@@ -302,11 +326,11 @@ export default function MyCreationsPage() {
                   <Download className="h-4 w-4" />
                 </Button>
                 
-                {creation.type === 'landing-page' && (
+                {creation.type === 'landing-page' && creation.content?.result && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handlePreview(creation.content.result)}
+                    onClick={() => handlePreview(creation.content?.result || '')}
                     title="Visualizar"
                   >
                     <Eye className="h-4 w-4" />
@@ -329,15 +353,25 @@ export default function MyCreationsPage() {
             <div className="mt-4 p-3 bg-muted rounded text-sm overflow-hidden">
               {creation.type === 'copywriting' ? (
                 <div className="line-clamp-3 whitespace-pre-wrap">
-                  {creation.content.result}
+                  {creation.content?.result || ""}
                 </div>
               ) : creation.type === 'landing-page' ? (
                 <div className="line-clamp-3 font-mono text-xs">
-                  {creation.content.result.substring(0, 200)}...
+                  {creation.content?.result ? `${creation.content.result.substring(0, 200)}...` : ""}
+                </div>
+              ) : creation.type === 'creative' && creation.content?.imageUrl ? (
+                <div className="flex justify-center">
+                  <Image 
+                    src={creation.content.imageUrl as string} 
+                    alt={creation.title} 
+                    width={300} 
+                    height={200} 
+                    className="object-contain max-h-48"
+                  />
                 </div>
               ) : (
                 <div className="line-clamp-3">
-                  {creation.content.result}
+                  {creation.content?.result || ""}
                 </div>
               )}
             </div>

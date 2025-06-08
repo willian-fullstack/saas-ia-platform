@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
     // Verificar se precisa buscar por ID
     if (id) {
       try {
-        const creation = await getUserCreationById(id);
+        const creation = await getUserCreationById(id, session.user.id);
         
         // Verificar se a criação pertence ao usuário
-        if (!creation || creation.userId.toString() !== session.user.id) {
+        if (!creation) {
           return NextResponse.json({ error: 'Criação não encontrada' }, { status: 404 });
         }
         

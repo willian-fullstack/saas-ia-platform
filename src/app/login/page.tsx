@@ -116,7 +116,7 @@ export default function Login() {
           <div className="flex justify-center mb-6">
             <Image
               src="/logo.svg"
-              alt="SAS IA Platform Logo"
+              alt="ExecutaAi Logo"
               width={60}
               height={60}
               className="dark:invert"
@@ -124,7 +124,7 @@ export default function Login() {
           </div>
           
           <h1 className="text-3xl font-bold text-center mb-8">
-            SAS IA Platform
+            ExecutaAi
           </h1>
 
           <Tabs defaultValue="login" className="w-full">
@@ -267,7 +267,7 @@ export default function Login() {
       </div>
       
       <footer className="p-4 border-t text-center text-sm text-muted-foreground">
-        <p>© 2024 SAS IA Platform - Todos os direitos reservados</p>
+        <p>© 2024 ExecutaAi - Todos os direitos reservados</p>
       </footer>
     </div>
   );

@@ -23,7 +23,7 @@ interface CreditUsageStats {
 
 // Lista de módulos disponíveis no sistema
 const availableModules = [
-  { id: "dashboard", name: "Dashboard" },
+  // { id: "dashboard", name: "Dashboard" }, // Removido - Dashboard não é um módulo que consome créditos
   { id: "copywriting", name: "IA de Copywriting" },
   { id: "creative", name: "Criativos Visuais" },
   { id: "videos", name: "Vídeos Curtos" },

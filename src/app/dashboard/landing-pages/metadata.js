@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "IA de Landing Pages | SAS IA Platform",
-  description: "Crie landing pages de alta conversão otimizadas com IA para seu produto ou serviço",
+  title: "IA de Landing Pages | ExecutaAi",
+  description: "Crie landing pages altamente convertedoras usando Inteligência Artificial",
 };
  
 export const viewport = {

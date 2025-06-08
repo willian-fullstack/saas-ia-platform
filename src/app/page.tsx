@@ -19,8 +19,35 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 w-full py-4 px-6 flex items-center justify-between backdrop-blur-sm bg-background/30">
         <div className="flex items-center">
-          <div className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-            SAS IA Platform
+          <div className="flex items-center gap-2">
+            <div className="relative md:hidden">
+              <Image 
+                src="/logo.svg" 
+                alt="ExecutaAi Logo Icon" 
+                width={36} 
+                height={36} 
+                className="group-hover:scale-110 transition-transform duration-300"
+                priority
+              />
+            </div>
+            <div className="relative">
+              <Image 
+                src="/img/logo_claro.png" 
+                alt="ExecutaAi" 
+                width={220}
+                height={60}
+                className="block dark:hidden" 
+                priority
+              />
+              <Image 
+                src="/img/logo_escuro.png" 
+                alt="ExecutaAi" 
+                width={220}
+                height={60}
+                className="hidden dark:block" 
+                priority
+              />
+            </div>
           </div>
         </div>
         <div className="hidden sm:flex space-x-2">
@@ -44,7 +71,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <AnimatedTitle as="h1" className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight">
-                SAS IA Platform
+                ExecutaAi
             </AnimatedTitle>
             <p className="text-xl text-muted-foreground max-w-xl animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
               Plataforma All-in-One para Criadores de Conteúdo, Afiliados, Dropshippers e Closers
@@ -195,7 +222,7 @@ export default function Home() {
                 Pronto para revolucionar sua produção de conteúdo?
               </AnimatedTitle>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              Junte-se a centenas de criadores que já estão economizando tempo e maximizando seus resultados com a SAS IA Platform.
+              Junte-se a centenas de criadores que já estão economizando tempo e maximizando seus resultados com a ExecutaAi.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
@@ -219,12 +246,19 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 container mx-auto px-4 py-8 mt-auto border-t border-border/40">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="text-center md:text-left mb-4 md:mb-0">
-            <p className="text-sm text-muted-foreground">
-              © 2024 SAS IA Platform - Todos os direitos reservados
-            </p>
+      <footer className="relative z-10 container mx-auto py-8 px-4 border-t">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Image 
+              src="/logo.svg" 
+              alt="ExecutaAi Logo" 
+              width={24} 
+              height={24} 
+              className="dark:invert"
+            />
+            <span className="text-sm text-muted-foreground">
+              © 2024 ExecutaAi - Todos os direitos reservados
+            </span>
           </div>
           <div className="flex space-x-6">
             <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">

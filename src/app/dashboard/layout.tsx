@@ -9,8 +9,8 @@ import { GradientBackground } from "@/components/dashboard/GradientBackground";
 const montserrat = Montserrat({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SAS IA Platform - Dashboard",
-  description: "Plataforma All-in-One com IA para Criadores de Conteúdo",
+  title: "ExecutaAi - Dashboard",
+  description: "Painel de gerenciamento da plataforma ExecutaAi",
 };
 
 export default function DashboardLayout({

@@ -39,15 +39,34 @@ export function MobileMenu({ isOpen, onClose, isAdmin: isAdminProp }: MobileMenu
       <div className="flex flex-col h-full overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <Link href="/" className="flex items-center gap-2 font-semibold" onClick={onClose}>
-            <Image 
-              src="/logo.svg" 
-              alt="SAS IA Platform Logo" 
-              width={30} 
-              height={30} 
-              className="dark:invert"
-              priority
-            />
-            <span>SAS IA Platform</span>
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <Image 
+                src="/logo.svg" 
+                alt="ExecutaAi Logo Icon" 
+                width={36} 
+                height={36} 
+                className="transition-transform duration-300"
+                priority
+              />
+            </div>
+            <div className="relative">
+              <Image 
+                src="/img/logo_claro.png" 
+                alt="ExecutaAi" 
+                width={120}
+                height={32}
+                className="block dark:hidden" 
+                priority
+              />
+              <Image 
+                src="/img/logo_escuro.png" 
+                alt="ExecutaAi" 
+                width={120}
+                height={32}
+                className="hidden dark:block" 
+                priority
+              />
+            </div>
           </Link>
           <button 
             onClick={onClose}
