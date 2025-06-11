@@ -41,7 +41,7 @@ export function MobileMenu({ isOpen, onClose, isAdmin: isAdminProp }: MobileMenu
           <Link href="/" className="flex items-center gap-2 font-semibold" onClick={onClose}>
             <div className="relative w-10 h-10 flex items-center justify-center">
               <Image 
-                src="/logo.svg" 
+                src="/img/favicon.png" 
                 alt="ExecutaAi Logo Icon" 
                 width={36} 
                 height={36} 

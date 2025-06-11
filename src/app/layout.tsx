@@ -15,7 +15,13 @@ export const metadata: Metadata = {
   description: "Plataforma de IA All-in-One para criadores de conteúdo, afiliados, dropshippers e closers",
   viewport: "width=device-width, initial-scale=1",
   icons: {
-    icon: "/logo.svg",
+    icon: "/img/favicon.png",
+    shortcut: "/img/favicon.png",
+    apple: "/img/favicon.png",
+    other: {
+      rel: "apple-touch-icon-precomposed",
+      url: "/img/favicon.png",
+    },
   },
 };
 

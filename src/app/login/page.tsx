@@ -115,7 +115,7 @@ export default function Login() {
         <div className="mx-auto w-full max-w-md">
           <div className="flex justify-center mb-6">
             <Image
-              src="/logo.svg"
+              src="/img/favicon.png"
               alt="ExecutaAi Logo"
               width={60}
               height={60}

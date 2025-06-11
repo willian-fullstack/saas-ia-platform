@@ -47,7 +47,7 @@ export function DashboardHeader() {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/60 to-primary/30 rounded-full blur-md opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
               <div className="relative w-10 h-10 flex items-center justify-center">
                 <Image 
-                  src="/logo.svg" 
+                  src="/img/favicon.png" 
                   alt="ExecutaAi Logo Icon" 
                   width={36} 
                   height={36} 

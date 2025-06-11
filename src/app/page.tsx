@@ -22,7 +22,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <div className="relative md:hidden">
               <Image 
-                src="/logo.svg" 
+                src="/img/favicon.png" 
                 alt="ExecutaAi Logo Icon" 
                 width={36} 
                 height={36} 
@@ -250,7 +250,7 @@ export default function Home() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
             <Image 
-              src="/logo.svg" 
+              src="/img/favicon.png" 
               alt="ExecutaAi Logo" 
               width={24} 
               height={24} 
