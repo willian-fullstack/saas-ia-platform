@@ -4,7 +4,12 @@ import mongoose from 'mongoose';
 const MONGODB_URI = process.env.MONGODB_URI as string;
 
 if (!MONGODB_URI) {
-  throw new Error('A variável de ambiente MONGODB_URI não está definida no arquivo .env.local');
+  console.error('⚠️ A variável de ambiente MONGODB_URI não está definida');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('A variável de ambiente MONGODB_URI é obrigatória em produção');
+  } else {
+    console.warn('⚠️ Usando conexão local como fallback em ambiente de desenvolvimento');
+  }
 }
 
 // Estrutura para cache de conexão
@@ -34,9 +39,17 @@ export async function connectToDB(): Promise<mongoose.Connection> {
 
   // Se não há uma promessa de conexão em andamento, cria uma
   if (!global.mongoConnection.promise) {
+    const uri = MONGODB_URI || (process.env.NODE_ENV !== 'production' 
+      ? 'mongodb://localhost:27017/sas-platform' 
+      : undefined);
+    
+    if (!uri) {
+      throw new Error('Não foi possível estabelecer conexão com MongoDB: URI não definida');
+    }
+    
     console.log('Iniciando nova conexão com MongoDB...');
     global.mongoConnection.promise = mongoose
-      .connect(MONGODB_URI)
+      .connect(uri)
       .then(mongoose => {
         console.log('✓ Conectado ao MongoDB');
         return mongoose.connection;

@@ -541,4 +541,172 @@ Para contribuir com o projeto:
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes. 
+Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+
+## Instruções de Deploy na VPS
+
+### Pré-requisitos
+
+- Ubuntu 24.04 LTS ou similar
+- Node.js 20.x ou superior
+- Nginx
+- PM2 (será instalado durante o processo)
+- Git
+
+### Passo a Passo para Deploy
+
+#### 1. Preparar o Servidor
+
+```bash
+# Atualizar o sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar dependências necessárias
+sudo apt install -y git curl build-essential nginx
+
+# Instalar Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verificar instalação
+node -v  # Deve mostrar v20.x.x
+npm -v   # Deve mostrar 10.x.x ou superior
+```
+
+#### 2. Clonar o Repositório
+
+```bash
+# Criar diretório para o projeto
+sudo mkdir -p /var/www
+cd /var/www
+
+# Clonar o repositório
+sudo git clone https://github.com/willian-fullstack/saas-ia-platform.git
+cd saas-ia-platform
+```
+
+#### 3. Configurar Variáveis de Ambiente
+
+```bash
+# Copiar arquivo de exemplo
+cp .env.example .env.local
+
+# Editar o arquivo com as configurações corretas
+nano .env.local
+```
+
+Configurações importantes para produção:
+
+```
+MONGODB_URI=mongodb+srv://seu_usuario:sua_senha@seu_cluster.mongodb.net/seu_banco
+NEXTAUTH_SECRET=chave_aleatoria_segura
+NEXTAUTH_URL=http://seu_ip_ou_dominio
+NEXT_PUBLIC_BASE_URL=http://seu_ip_ou_dominio
+NODE_ENV=production
+SECURE_COOKIES=false  # Mudar para true quando configurar HTTPS
+```
+
+#### 4. Instalar Dependências e Construir o Projeto
+
+```bash
+# Instalar dependências
+npm ci
+
+# Construir o projeto
+npm run build
+```
+
+#### 5. Configurar PM2
+
+```bash
+# Instalar PM2 globalmente
+sudo npm install -g pm2
+
+# Iniciar a aplicação com PM2
+pm2 start npm --name "sas-ia-platform" -- start
+
+# Configurar PM2 para iniciar com o sistema
+pm2 save
+pm2 startup
+```
+
+#### 6. Configurar Nginx
+
+Crie um arquivo de configuração para o Nginx:
+
+```bash
+sudo nano /etc/nginx/sites-available/saas-ia-platform
+```
+
+Adicione o seguinte conteúdo:
+
+```nginx
+server {
+    listen 80;
+    server_name seu_ip_ou_dominio;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Ative a configuração e reinicie o Nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/saas-ia-platform /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+#### 7. Configurar HTTPS (opcional, mas recomendado)
+
+```bash
+# Instalar Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obter certificado SSL
+sudo certbot --nginx -d seu_dominio.com
+```
+
+Após configurar o HTTPS, atualize o arquivo `.env.local`:
+```
+NEXTAUTH_URL=https://seu_dominio.com
+NEXT_PUBLIC_BASE_URL=https://seu_dominio.com
+SECURE_COOKIES=true
+```
+
+#### 8. Script de Deploy Automatizado
+
+Para facilitar futuros deploys, use o script `deploy.sh` incluído no projeto:
+
+```bash
+# Dar permissão de execução
+chmod +x deploy.sh
+
+# Executar o script
+sudo ./deploy.sh
+```
+
+### Solução de Problemas
+
+#### Erro de conexão com MongoDB
+- Verifique se a string de conexão do MongoDB está correta no arquivo `.env.local`
+- Certifique-se de que o IP da VPS está na lista de IPs permitidos no MongoDB Atlas
+
+#### Erro 401 no login
+- Verifique se `SECURE_COOKIES=false` quando estiver usando HTTP
+- Verifique se as URLs no `.env.local` estão corretas
+
+#### Problemas com o Nginx
+- Verifique os logs: `sudo tail -f /var/log/nginx/error.log`
+- Teste a configuração: `sudo nginx -t`
+
+#### Problemas com PM2
+- Verifique os logs: `pm2 logs sas-ia-platform`
+- Reinicie a aplicação: `pm2 restart sas-ia-platform` 
