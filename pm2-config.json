@@ -18,7 +18,8 @@
         "PORT": 3000
       },
       "log_date_format": "YYYY-MM-DD HH:mm:ss Z",
-      "merge_logs": true
+      "merge_logs": true,
+      "env_file": ".env"
     }
   ]
 } 

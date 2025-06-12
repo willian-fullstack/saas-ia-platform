@@ -43,13 +43,32 @@ cd $BASE_DIR || { error "Falha ao acessar o diretório $BASE_DIR"; exit 1; }
 log "Atualizando código do repositório"
 git pull || { warning "Falha ao atualizar código. Continuando com o código atual."; }
 
-# Verificar arquivo .env.local
-log "Verificando arquivo .env.local"
-if [ ! -f .env.local ]; then
-  warning "Arquivo .env.local não encontrado. Criando a partir do .env.example"
-  cp .env.example .env.local
-  warning "Lembre-se de editar o arquivo .env.local com suas configurações!"
+# Verificar arquivo .env
+log "Verificando arquivo .env"
+if [ ! -f .env ]; then
+  warning "Arquivo .env não encontrado. Criando a partir do .env.example"
+  cp .env.example .env
+  warning "Lembre-se de editar o arquivo .env com suas configurações!"
 fi
+
+# Verificar configuração do MongoDB
+log "Verificando configuração do MongoDB"
+if grep -q "MONGODB_URI=" .env; then
+  log "Configuração do MongoDB encontrada no arquivo .env"
+  # Verificar se a URI está configurada para Atlas e não localhost
+  if grep -q "mongodb://localhost" .env; then
+    warning "A URI do MongoDB está configurada para localhost. Verifique se isso é intencional."
+    warning "Para produção, recomenda-se usar MongoDB Atlas."
+  fi
+else
+  error "Configuração MONGODB_URI não encontrada no arquivo .env"
+  exit 1
+fi
+
+# Copiar .env para .env.local e .env.production
+log "Copiando configurações de ambiente"
+cp .env .env.local
+cp .env .env.production
 
 # Instalar dependências
 log "Instalando dependências"
@@ -57,7 +76,7 @@ npm ci || { error "Falha ao instalar dependências"; exit 1; }
 
 # Construir a aplicação
 log "Construindo a aplicação"
-npm run build || { error "Falha ao construir a aplicação"; exit 1; }
+NODE_ENV=production npm run build || { error "Falha ao construir a aplicação"; exit 1; }
 
 # Configurar PM2
 log "Configurando PM2"
