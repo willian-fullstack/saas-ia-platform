@@ -33,23 +33,30 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     
+    console.log("[LOGIN] Iniciando processo de login para:", loginEmail);
+    
     try {
+      console.log("[LOGIN] Chamando signIn...");
       const result = await signIn("credentials", {
         redirect: false,
         email: loginEmail,
         password: loginPassword,
       });
       
+      console.log("[LOGIN] Resultado do signIn:", result);
+      
       if (result?.error) {
+        console.error("[LOGIN] Erro retornado pelo signIn:", result.error);
         toast.error("Falha no login. Verifique suas credenciais.");
         return;
       }
       
+      console.log("[LOGIN] Login bem-sucedido, redirecionando para dashboard");
       toast.success("Login realizado com sucesso!");
       router.push("/dashboard");
     } catch (error) {
+      console.error("[LOGIN] Erro durante o processo de login:", error);
       toast.error("Ocorreu um erro ao realizar o login. Tente novamente.");
-      console.error("Erro de login:", error);
     } finally {
       setIsLoading(false);
     }

@@ -4,6 +4,15 @@ import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
+// Função auxiliar para log
+function logAuthHook(hook: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[AUTH-HOOK ${timestamp}] [${hook}] ${message}`);
+  if (data) {
+    console.log(`[AUTH-HOOK ${timestamp}] [${hook}] Data:`, data);
+  }
+}
+
 // Definição de tipo estendida para incluir a propriedade role no usuário
 interface ExtendedUser {
   id: string;
@@ -27,10 +36,22 @@ export function useRequireAuth() {
   const router = useRouter();
   
   useEffect(() => {
+    logAuthHook('useRequireAuth', `Status: ${status}`, { 
+      hasSession: !!session, 
+      user: session?.user?.email
+    });
+    
     if (status === "loading") return; // Ainda carregando, aguarde
     
     if (!session) {
+      logAuthHook('useRequireAuth', 'Usuário não autenticado, redirecionando para login');
       router.push("/login");
+    } else {
+      logAuthHook('useRequireAuth', 'Usuário autenticado', { 
+        userId: session.user?.id,
+        email: session.user?.email,
+        role: session.user?.role
+      });
     }
   }, [session, status, router]);
   
@@ -47,11 +68,21 @@ export function useRedirectIfAuthenticated() {
   const pathname = usePathname();
   
   useEffect(() => {
+    logAuthHook('useRedirectIfAuthenticated', `Status: ${status}, Pathname: ${pathname}`, { 
+      hasSession: !!session, 
+      user: session?.user?.email
+    });
+    
     if (status === "loading") return; // Ainda carregando, aguarde
     
     // Se o usuário estiver autenticado e estiver em uma página pública, redirecione
     if (session && (pathname === "/login" || pathname === "/")) {
+      logAuthHook('useRedirectIfAuthenticated', 'Usuário já autenticado, redirecionando para dashboard');
       router.push("/dashboard");
+    } else if (session) {
+      logAuthHook('useRedirectIfAuthenticated', 'Usuário autenticado, mas não em página pública');
+    } else {
+      logAuthHook('useRedirectIfAuthenticated', 'Usuário não autenticado, permanecendo na página');
     }
   }, [session, status, router, pathname]);
   
@@ -66,6 +97,14 @@ export function useIsAdmin() {
   const { data: session, status } = useSession();
   const typedSession = session as ExtendedSession | null;
   const isAdmin = typedSession?.user?.role === "admin";
+  
+  useEffect(() => {
+    logAuthHook('useIsAdmin', `Status: ${status}`, { 
+      hasSession: !!session, 
+      user: session?.user?.email,
+      isAdmin
+    });
+  }, [session, status, isAdmin]);
   
   return { 
     isAdmin, 
@@ -84,15 +123,25 @@ export function useRequireAdmin() {
   const isAdmin = typedSession?.user?.role === "admin";
   
   useEffect(() => {
+    logAuthHook('useRequireAdmin', `Status: ${status}`, { 
+      hasSession: !!session, 
+      user: session?.user?.email,
+      isAdmin
+    });
+    
     if (status === "loading") return; // Ainda carregando, aguarde
     
     if (!session) {
+      logAuthHook('useRequireAdmin', 'Usuário não autenticado, redirecionando para login');
       router.push("/login");
       return;
     }
     
     if (!isAdmin) {
+      logAuthHook('useRequireAdmin', 'Usuário não é admin, redirecionando para dashboard');
       router.push("/dashboard");
+    } else {
+      logAuthHook('useRequireAdmin', 'Usuário é admin, permitindo acesso');
     }
   }, [session, status, router, isAdmin]);
   

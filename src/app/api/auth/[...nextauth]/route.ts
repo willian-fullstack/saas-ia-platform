@@ -24,6 +24,15 @@ declare module "next-auth" {
   }
 }
 
+// Função auxiliar para log detalhado
+function logAuth(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[AUTH ${timestamp}] ${message}`);
+  if (data) {
+    console.log(`[AUTH ${timestamp}] Data:`, JSON.stringify(data, null, 2));
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -34,31 +43,41 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
+          logAuth("Tentativa de login iniciada");
+          
           // Validar credenciais
           if (!credentials?.email || !credentials?.password) {
+            logAuth("Credenciais incompletas");
             return null;
           }
 
+          logAuth(`Buscando usuário com email: ${credentials.email}`);
+          
           // Buscar usuário no banco de dados por email
           const user = await getUserByEmail(credentials.email);
 
           // Se não encontrou o usuário
           if (!user) {
-            console.log(`Usuário não encontrado para email: ${credentials.email}`);
+            logAuth(`Usuário não encontrado para email: ${credentials.email}`);
             return null;
           }
 
+          logAuth(`Usuário encontrado: ${user._id.toString()}`);
+          
           // Comparar a senha fornecida com a hash armazenada
+          logAuth("Verificando senha...");
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
             user.password
           );
 
           if (!isPasswordValid) {
-            console.log(`Senha inválida para email: ${credentials.email}`);
+            logAuth(`Senha inválida para email: ${credentials.email}`);
             return null;
           }
 
+          logAuth(`Login bem-sucedido para: ${user.email}`);
+          
           // Retorna as informações do usuário sem a senha
           return {
             id: user._id.toString(),
@@ -67,10 +86,10 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
-          console.error("Erro na autenticação:", error);
+          logAuth(`Erro na autenticação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, { error });
           return null;
         }
-      },
+      }
     }),
   ],
   session: {
@@ -82,17 +101,24 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      logAuth("Callback JWT", { tokenId: token.sub, userId: user?.id });
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        logAuth("JWT atualizado com dados do usuário", { token });
       }
       return token;
     },
     async session({ session, token }) {
+      logAuth("Callback Session", { sessionUser: session.user?.email, tokenId: token.sub });
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as 'user' | 'admin';
-        console.log('Session user ID:', session.user.id, 'Role:', session.user.role);
+        logAuth('Session atualizada', { 
+          userId: session.user.id, 
+          role: session.user.role,
+          email: session.user.email
+        });
       }
       return session;
     },
@@ -109,8 +135,26 @@ export const authOptions: NextAuthOptions = {
         maxAge: 30 * 24 * 60 * 60, // 30 dias
       },
     },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Habilitando modo de debug para mais informações
 };
 
 const handler = NextAuth(authOptions);
