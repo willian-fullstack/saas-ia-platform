@@ -75,6 +75,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
   pages: {
     signIn: "/login",
@@ -96,7 +97,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  // Aumentar o tempo do cookie de sessão
+  // Configuração de cookies ajustada para funcionar sem HTTPS
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -104,7 +105,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: false, // Definido como false para funcionar sem HTTPS
         maxAge: 30 * 24 * 60 * 60, // 30 dias
       },
     },
