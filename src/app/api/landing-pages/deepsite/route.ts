@@ -12,9 +12,6 @@ import {
   addTrackingToLandingPage 
 } from './utils';
 
-// Não importaremos as funções ausentes
-// Vamos implementar a funcionalidade básica sem elas
-
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

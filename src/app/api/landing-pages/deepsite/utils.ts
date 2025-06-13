@@ -264,7 +264,7 @@ export function addTrackingToLandingPage(html: string, trackingConfig: {
     // Facebook Pixel
     if (facebookPixelId) {
       trackingScripts += `
-<!-- Facebook Pixel -->
+<!-- Facebook Pixel Code -->
 <script>
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -277,9 +277,10 @@ export function addTrackingToLandingPage(html: string, trackingConfig: {
   fbq('init', '${facebookPixelId}');
   fbq('track', 'PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none"
-  src="https://www.facebook.com/tr?id=${facebookPixelId}&ev=PageView&noscript=1"
-/></noscript>
+<noscript>
+  <img height="1" width="1" style="display:none" 
+       src="https://www.facebook.com/tr?id=${facebookPixelId}&ev=PageView&noscript=1"/>
+</noscript>
 `;
     }
     
@@ -291,7 +292,7 @@ ${customScript}
 `;
     }
     
-    // Adiciona os scripts antes do fechamento do body
+    // Adiciona os scripts ao final do body
     if (trackingScripts) {
       if (html.includes('</body>')) {
         html = html.replace('</body>', `${trackingScripts}</body>`);
