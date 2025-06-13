@@ -3,11 +3,13 @@ import { connectToDB } from '../connection';
 
 // Interface para o documento LandingPage
 export interface ILandingPage extends Document {
+  _id: mongoose.Types.ObjectId;
   title: string;
   description: string;
   html: string;
   tags: string[];
   userId: string;
+  type?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +39,11 @@ const landingPageSchema = new Schema<ILandingPage>(
       type: String,
       required: [true, 'ID do usuário é obrigatório'],
       index: true,
+    },
+    type: {
+      type: String,
+      default: 'standard',
+      enum: ['standard', 'deepsite', 'template'],
     },
   },
   {

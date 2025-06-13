@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDB } from "@/lib/db/connection";
-import Subscription from "@/lib/db/models/Subscription";
+import mongoose from "mongoose";
 import User from "@/lib/db/models/User";
 import Plan from "@/lib/db/models/Plan";
 
@@ -49,6 +49,26 @@ export async function GET(req: NextRequest) {
       filter.userId = userId;
     }
     
+    // Usar o modelo Subscription diretamente
+    const Subscription = mongoose.models.Subscription || 
+      mongoose.model('Subscription', new mongoose.Schema({
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', required: true },
+        status: { type: String, enum: ['active', 'cancelled', 'pending'], required: true },
+        mercadoPagoId: String,
+        startDate: Date,
+        endDate: Date,
+        renewalDate: Date,
+        paymentHistory: [{
+          paymentId: String,
+          amount: Number,
+          status: String,
+          date: Date
+        }],
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      }));
+    
     // Buscar assinaturas com população de usuário e plano
     const subscriptions = await Subscription.find(filter)
       .populate({
@@ -65,7 +85,7 @@ export async function GET(req: NextRequest) {
       .limit(limit);
     
     // Processar resultados para formato adequado
-    const processedSubscriptions = subscriptions.map(sub => {
+    const processedSubscriptions = subscriptions.map((sub: mongoose.Document) => {
       const subscription = sub.toObject();
       
       // Adicionar informações do usuário em um campo separado para maior clareza na UI

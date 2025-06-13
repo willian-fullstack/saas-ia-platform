@@ -155,4 +155,154 @@ export const sanitizeOptions = {
     'script': ['src', 'type', 'async', 'defer'],
   },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-}; 
+};
+
+/**
+ * Funções que estavam sendo importadas no route.ts
+ */
+
+// Sanitiza o HTML da landing page
+export function sanitizeLandingPageHtml(html: string): string {
+  try {
+    return sanitizeHtml(html, sanitizeOptions);
+  } catch (error) {
+    console.error('Erro ao sanitizar HTML:', error);
+    return html; // Em caso de erro, retorna o HTML original
+  }
+}
+
+// Processa o HTML da landing page
+export function processLandingPageHtml(html: string): string {
+  try {
+    // Primeiro sanitiza o HTML
+    let processedHtml = sanitizeLandingPageHtml(html);
+    
+    // Aqui você pode adicionar outras transformações necessárias
+    // Por exemplo, corrigir links relativos, adicionar classes, etc.
+    
+    return processedHtml;
+  } catch (error) {
+    console.error('Erro ao processar HTML:', error);
+    return html; // Em caso de erro, retorna o HTML original
+  }
+}
+
+// Adiciona meta tags de SEO ao HTML
+export function addSeoMetaTags(html: string, metadata: { 
+  title?: string; 
+  description?: string; 
+  keywords?: string;
+  ogImage?: string;
+}): string {
+  try {
+    const { title, description, keywords, ogImage } = metadata;
+    
+    // Verifica se o HTML tem a tag head
+    if (!html.includes('<head>')) {
+      html = html.replace('<html>', '<html><head></head>');
+    }
+    
+    // Prepara as meta tags
+    let metaTags = '';
+    
+    if (title) {
+      metaTags += `<title>${title}</title>\n`;
+      metaTags += `<meta property="og:title" content="${title}" />\n`;
+    }
+    
+    if (description) {
+      metaTags += `<meta name="description" content="${description}" />\n`;
+      metaTags += `<meta property="og:description" content="${description}" />\n`;
+    }
+    
+    if (keywords) {
+      metaTags += `<meta name="keywords" content="${keywords}" />\n`;
+    }
+    
+    if (ogImage) {
+      metaTags += `<meta property="og:image" content="${ogImage}" />\n`;
+    }
+    
+    // Adiciona viewport para responsividade
+    metaTags += `<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n`;
+    
+    // Adiciona as meta tags ao head
+    html = html.replace('<head>', `<head>\n${metaTags}`);
+    
+    return html;
+  } catch (error) {
+    console.error('Erro ao adicionar meta tags de SEO:', error);
+    return html; // Em caso de erro, retorna o HTML original
+  }
+}
+
+// Adiciona scripts de tracking à landing page
+export function addTrackingToLandingPage(html: string, trackingConfig: {
+  googleAnalyticsId?: string;
+  facebookPixelId?: string;
+  customScript?: string;
+}): string {
+  try {
+    const { googleAnalyticsId, facebookPixelId, customScript } = trackingConfig;
+    
+    let trackingScripts = '';
+    
+    // Google Analytics
+    if (googleAnalyticsId) {
+      trackingScripts += `
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${googleAnalyticsId}');
+</script>
+`;
+    }
+    
+    // Facebook Pixel
+    if (facebookPixelId) {
+      trackingScripts += `
+<!-- Facebook Pixel -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '${facebookPixelId}');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=${facebookPixelId}&ev=PageView&noscript=1"
+/></noscript>
+`;
+    }
+    
+    // Script personalizado
+    if (customScript) {
+      trackingScripts += `
+<!-- Script personalizado -->
+${customScript}
+`;
+    }
+    
+    // Adiciona os scripts antes do fechamento do body
+    if (trackingScripts) {
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', `${trackingScripts}</body>`);
+      } else {
+        html += trackingScripts;
+      }
+    }
+    
+    return html;
+  } catch (error) {
+    console.error('Erro ao adicionar scripts de tracking:', error);
+    return html; // Em caso de erro, retorna o HTML original
+  }
+} 
